@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
+        h1 { color: #333; }
+        .stats { margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); }
+        .stats p { margin: 5px 0; font-size: 16px; }
+        .upload-link { margin-top: 20px; display: inline-block; padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+        .upload-link:hover { background: #0056b3; }
+        .graph { margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <h1>Student Data Analysis</h1>
+
+    <div class="stats">
+        <p><strong>Number of students:</strong> {{ count }}</p>
+        <p><strong>Class Average:</strong> {{ average }}</p>
+        <p><strong>Highest Marks:</strong> {{ highest }}</p>
+        <p><strong>Lowest Marks:</strong> {{ lowest }}</p>
+    </div>
+
+    <div class="graph">
+        {{ graph_html|safe }}
+    </div>
+
+    <a href="/" class="upload-link">Upload another file</a>
+</body>
+</html>
