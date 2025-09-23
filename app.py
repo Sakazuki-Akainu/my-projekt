@@ -1,73 +1,54 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request
 import pandas as pd
 import plotly.express as px
-import os
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # needed for session
+df = None  # Global to hold uploaded dataframe
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
-    df = None
+    global df
+    graph_html = None
+    stats_html = None
+    tables = None
+    columns = []
 
     if request.method == "POST":
-        # Case 1: File upload
-        if "file" in request.files and request.files["file"].filename != "":
+        if "file" in request.files:  # Handle file upload
             file = request.files["file"]
-            filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(filepath)
+            if file.filename.endswith(".csv"):
+                df = pd.read_csv(file)
+                tables = [df.head().to_html(classes="table table-bordered table-striped", index=False)]
+                columns = df.columns.tolist()
 
-            # Save file path in session
-            session["uploaded_file"] = filepath
+        elif df is not None:  # Handle graph generation
+            x_column = request.form.get("x_column")
+            y_column = request.form.get("y_column")
+            chart_type = request.form.get("chart_type")
 
-            df = pd.read_csv(filepath)
+            if x_column and y_column:
+                if chart_type == "line":
+                    fig = px.line(df, x=x_column, y=y_column, title="Line Chart")
+                elif chart_type == "bar":
+                    fig = px.bar(df, x=x_column, y=y_column, title="Bar Chart")
+                elif chart_type == "scatter":
+                    fig = px.scatter(df, x=x_column, y=y_column, title="Scatter Plot")
+                elif chart_type == "pie":
+                    fig = px.pie(df, names=x_column, values=y_column, title="Pie Chart")
 
-            return render_template(
-                "upload.html",
-                tables=[df.head().to_html(classes="table table-striped", index=False)],
-                columns=df.columns,
-                graph_html=None,
-                stats=None
-            )
+                graph_html = fig.to_html(full_html=False)
 
-        # Case 2: Column selection form
-        elif "x_column" in request.form and "y_column" in request.form:
-            filepath = session.get("uploaded_file")
-            if not filepath:
-                return "Error: No file uploaded yet!"
+            stats_html = df.describe().to_html(classes="table table-bordered table-hover")
 
-            df = pd.read_csv(filepath)
-            x_col = request.form["x_column"]
-            y_col = request.form["y_column"]
-            chart_type = request.form["chart_type"]
+    return render_template(
+        "upload.html",
+        tables=tables,
+        columns=columns,
+        graph_html=graph_html,
+        stats=stats_html,
+    )
 
-            # Create chart dynamically
-            if chart_type == "line":
-                fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
-            elif chart_type == "bar":
-                fig = px.bar(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
-            elif chart_type == "scatter":
-                fig = px.scatter(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
-            elif chart_type == "pie":
-                fig = px.pie(df, names=x_col, values=y_col, title=f"{y_col} by {x_col}")
-            else:
-                fig = None
-
-            graph_html = fig.to_html(full_html=False) if fig else ""
-            stats = df.describe().to_html(classes="table table-bordered")
-
-            return render_template(
-                "upload.html",
-                tables=[df.head().to_html(classes="table table-striped", index=False)],
-                columns=df.columns,
-                graph_html=graph_html,
-                stats=stats
-            )
-
-    return render_template("upload.html", tables=None, columns=None, graph_html=None, stats=None)
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True)
