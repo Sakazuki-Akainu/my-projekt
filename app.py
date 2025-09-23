@@ -46,3 +46,10 @@ def upload_file():
         return render_template("results.html", tables=[df.head().to_html(classes="data")], graphs=graphs, filename=file.filename)
 
     return render_template("upload.html")
+
+import os
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Render gives a PORT
+    app.run(host="0.0.0.0", port=port, debug=True)
+
