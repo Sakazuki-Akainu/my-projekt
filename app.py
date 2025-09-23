@@ -5,45 +5,63 @@ import os
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return render_template("upload.html")
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route("/upload", methods=["POST"])
+@app.route("/", methods=["GET", "POST"])
 def upload_file():
-    file = request.files["file"]
-    if file:
-        filename = file.filename
+    if request.method == "POST":
+        file = request.files["file"]
+        if file.filename == "":
+            return "No file selected"
 
-        # Read file (CSV or Excel)
-        if filename.endswith(".csv"):
-            df = pd.read_csv(file)
-        elif filename.endswith(".xlsx"):
-            df = pd.read_excel(file)
-        else:
-            return "Only CSV or Excel files are supported!"
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
 
-        # Calculate stats
-        average = round(df["Marks"].mean(), 2)
-        highest = df["Marks"].max()
-        lowest = df["Marks"].min()
-        count = df["Marks"].count()
+        # Load CSV into DataFrame
+        df = pd.read_csv(filepath)
 
-        # Plot interactive graph
-        fig = px.bar(df, x="Name", y="Marks", title=f"Student Marks (Avg: {average})")
-        graph_html = fig.to_html(full_html=False)
+        # If user chose columns and chart type
+        if "x_column" in request.form and "y_column" in request.form:
+            x_col = request.form["x_column"]
+            y_col = request.form["y_column"]
+            chart_type = request.form["chart_type"]
 
-        # Send data + graph to results.html
-        return render_template("results.html",
-                               count=count,
-                               average=average,
-                               highest=highest,
-                               lowest=lowest,
-                               graph_html=graph_html)
-    return "No file uploaded"
+            # Create chart dynamically
+            if chart_type == "line":
+                fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
+            elif chart_type == "bar":
+                fig = px.bar(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
+            elif chart_type == "scatter":
+                fig = px.scatter(df, x=x_col, y=y_col, title=f"{y_col} vs {x_col}")
+            elif chart_type == "pie":
+                fig = px.pie(df, names=x_col, values=y_col, title=f"{y_col} by {x_col}")
+            else:
+                fig = None
 
-import os
+            graph_html = fig.to_html(full_html=False) if fig else ""
+
+            # Show numeric column stats
+            stats = df.describe().to_html(classes="table table-bordered")
+
+            return render_template(
+                "upload.html",
+                tables=[df.head().to_html(classes="table table-striped", index=False)],
+                columns=df.columns,
+                graph_html=graph_html,
+                stats=stats
+            )
+
+        # First upload → just show preview
+        return render_template(
+            "upload.html",
+            tables=[df.head().to_html(classes="table table-striped", index=False)],
+            columns=df.columns,
+            graph_html=None,
+            stats=None
+        )
+
+    return render_template("upload.html", tables=None, columns=None, graph_html=None, stats=None)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
