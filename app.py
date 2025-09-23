@@ -1,57 +1,48 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+import os
+from io import BytesIO
 
 app = Flask(__name__)
-df = None  # Global to hold uploaded dataframe
-
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
-    global df
-    graph_html = None
-    stats_html = None
-    tables = None
-    columns = []
-
     if request.method == "POST":
-        if "file" in request.files:  # Handle file upload
-            file = request.files["file"]
-            if file.filename.endswith(".csv"):
-                df = pd.read_csv(file)
-                tables = [df.head().to_html(classes="table table-bordered table-striped", index=False)]
-                columns = df.columns.tolist()
+        file = request.files["file"]
+        if not file:
+            return "No file uploaded", 400
+        
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
+        df = pd.read_csv(filepath)
 
-        elif df is not None:  # Handle graph generation
-            x_column = request.form.get("x_column")
-            y_column = request.form.get("y_column")
-            chart_type = request.form.get("chart_type")
+        # Generate multiple graphs
+        graphs = []
+        numeric_cols = df.select_dtypes(include=["number"]).columns
 
-            if x_column and y_column:
-                if chart_type == "line":
-                    fig = px.line(df, x=x_column, y=y_column, title="Line Chart")
-                elif chart_type == "bar":
-                    fig = px.bar(df, x=x_column, y=y_column, title="Bar Chart")
-                elif chart_type == "scatter":
-                    fig = px.scatter(df, x=x_column, y=y_column, title="Scatter Plot")
-                elif chart_type == "pie":
-                    fig = px.pie(df, names=x_column, values=y_column, title="Pie Chart")
+        if len(numeric_cols) >= 2:
+            col1, col2 = numeric_cols[0], numeric_cols[1]
 
-                graph_html = fig.to_html(full_html=False)
+            # Bar Chart
+            fig1 = px.bar(df, x=col1, y=col2, title=f"Bar Chart of {col1} vs {col2}")
+            graphs.append(pio.to_html(fig1, full_html=False))
 
-            stats_html = df.describe().to_html(classes="table table-bordered table-hover")
+            # Line Chart
+            fig2 = px.line(df, x=col1, y=col2, title=f"Line Chart of {col1} vs {col2}")
+            graphs.append(pio.to_html(fig2, full_html=False))
 
-    return render_template(
-        "upload.html",
-        tables=tables,
-        columns=columns,
-        graph_html=graph_html,
-        stats=stats_html,
-    )
+            # Scatter Chart
+            fig3 = px.scatter(df, x=col1, y=col2, title=f"Scatter Plot of {col1} vs {col2}")
+            graphs.append(pio.to_html(fig3, full_html=False))
 
+            # Histogram (of col1)
+            fig4 = px.histogram(df, x=col1, title=f"Histogram of {col1}")
+            graphs.append(pio.to_html(fig4, full_html=False))
 
-import os
+        return render_template("results.html", tables=[df.head().to_html(classes="data")], graphs=graphs, filename=file.filename)
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render gives the port
-    app.run(host="0.0.0.0", port=port, debug=False)
+    return render_template("upload.html")
