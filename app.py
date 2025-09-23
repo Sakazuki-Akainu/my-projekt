@@ -1,28 +1,45 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 import pandas as pd
 import plotly.express as px
 import os
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"  # needed for session
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
+    df = None
+
     if request.method == "POST":
-        file = request.files["file"]
-        if file.filename == "":
-            return "No file selected"
+        # Case 1: File upload
+        if "file" in request.files and request.files["file"].filename != "":
+            file = request.files["file"]
+            filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(filepath)
 
-        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(filepath)
+            # Save file path in session
+            session["uploaded_file"] = filepath
 
-        # Load CSV into DataFrame
-        df = pd.read_csv(filepath)
+            df = pd.read_csv(filepath)
 
-        # If user chose columns and chart type
-        if "x_column" in request.form and "y_column" in request.form:
+            return render_template(
+                "upload.html",
+                tables=[df.head().to_html(classes="table table-striped", index=False)],
+                columns=df.columns,
+                graph_html=None,
+                stats=None
+            )
+
+        # Case 2: Column selection form
+        elif "x_column" in request.form and "y_column" in request.form:
+            filepath = session.get("uploaded_file")
+            if not filepath:
+                return "Error: No file uploaded yet!"
+
+            df = pd.read_csv(filepath)
             x_col = request.form["x_column"]
             y_col = request.form["y_column"]
             chart_type = request.form["chart_type"]
@@ -40,8 +57,6 @@ def upload_file():
                 fig = None
 
             graph_html = fig.to_html(full_html=False) if fig else ""
-
-            # Show numeric column stats
             stats = df.describe().to_html(classes="table table-bordered")
 
             return render_template(
@@ -51,15 +66,6 @@ def upload_file():
                 graph_html=graph_html,
                 stats=stats
             )
-
-        # First upload → just show preview
-        return render_template(
-            "upload.html",
-            tables=[df.head().to_html(classes="table table-striped", index=False)],
-            columns=df.columns,
-            graph_html=None,
-            stats=None
-        )
 
     return render_template("upload.html", tables=None, columns=None, graph_html=None, stats=None)
 
