@@ -45,43 +45,81 @@
       font-size: 1.1em;
       font-weight: bold;
     }
+    .dark-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      background: #444;
+      color: white;
+      padding: 10px;
+      border-radius: 50px;
+      transition: all 0.3s ease;
+      overflow: hidden;
+      width: 40px;
+    }
+    .dark-toggle span {
+      margin-left: 10px;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-20px);
+      transition: all 0.3s ease;
+    }
+    .dark-toggle:hover {
+      width: 150px;
+    }
+    .dark-toggle:hover span {
+      opacity: 1;
+      transform: translateX(0);
+    }
   </style>
 </head>
 <body>
- <style>
-  .dark-toggle {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    background: #444;
-    color: white;
-    padding: 10px;
-    border-radius: 50px;
-    transition: all 0.3s ease;
-    overflow: hidden;
-    width: 40px;
-  }
-  .dark-toggle span {
-    margin-left: 10px;
-    white-space: nowrap;
-    opacity: 0;
-    transform: translateX(-20px);
-    transition: all 0.3s ease;
-  }
-  .dark-toggle:hover {
-    width: 150px;
-  }
-  .dark-toggle:hover span {
-    opacity: 1;
-    transform: translateX(0);
-  }
-</style>
 
 <div class="dark-toggle" id="darkToggle">
   🌙 <span>Toggle Dark Mode</span>
 </div>
+
+<div class="card" style="margin-top:20px; text-align:left;">
+  <h2>🤖 AI Chat</h2>
+  <div id="chatbox" style="height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; background:var(--card-color);">
+    <p><b>AI:</b> Ask me anything about your data!</p>
+  </div>
+  <input type="text" id="userInput" placeholder="Type your question..." style="width:70%;">
+  <button onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+  document.getElementById("darkToggle").addEventListener("click", () => {
+    document.body.classList.toggle("dark-mode");
+  });
+
+  async function sendMessage() {
+    let input = document.getElementById("userInput");
+    let message = input.value.trim();
+    if (!message) return;
+
+    let chatbox = document.getElementById("chatbox");
+    chatbox.innerHTML += `<p><b>You:</b> ${message}</p>`;
+    input.value = "";
+
+    try {
+      let response = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: message })
+      });
+      let data = await response.json();
+      chatbox.innerHTML += `<p><b>AI:</b> ${data.answer}</p>`;
+    } catch (error) {
+      chatbox.innerHTML += `<p><b>AI:</b> Sorry, something went wrong.</p>`;
+    }
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
+</script>
+
 </body>
 </html>
