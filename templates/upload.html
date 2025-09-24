@@ -48,36 +48,40 @@
   </style>
 </head>
 <body>
-  <h1>📊 Data Analyzer</h1>
+ <style>
+  .dark-toggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    background: #444;
+    color: white;
+    padding: 10px;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    width: 40px;
+  }
+  .dark-toggle span {
+    margin-left: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.3s ease;
+  }
+  .dark-toggle:hover {
+    width: 150px;
+  }
+  .dark-toggle:hover span {
+    opacity: 1;
+    transform: translateX(0);
+  }
+</style>
 
-  <button id="darkToggle">🌙 Toggle Dark Mode</button>
-
-  <form action="/" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" required>
-    <button type="submit">Upload</button>
-  </form>
-
-  {% if table %}
-  <div class="card">
-    <h2>Uploaded Data</h2>
-    {{ table|safe }}
-  </div>
-
-  <div class="card">
-    <h2>Generated Graph</h2>
-    {{ graph|safe }}
-  </div>
-
-  <div class="card" id="insights">
-    <h2>AI Insights</h2>
-    <p>{{ insights }}</p>
-  </div>
-  {% endif %}
-
-  <script>
-    document.getElementById("darkToggle").addEventListener("click", () => {
-      document.body.classList.toggle("dark-mode");
-    });
-  </script>
+<div class="dark-toggle" id="darkToggle">
+  🌙 <span>Toggle Dark Mode</span>
+</div>
 </body>
 </html>
