@@ -1,55 +1,60 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request
 import pandas as pd
 import plotly.express as px
-import plotly.io as pio
-import os
-from io import BytesIO
 
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def generate_ai_insights(df):
+    """Simple rule-based AI insights for any dataset"""
+    insights = []
+    try:
+        insights.append(f"Dataset contains {df.shape[0]} rows and {df.shape[1]} columns.")
+        numeric_cols = df.select_dtypes(include="number").columns.tolist()
+
+        if numeric_cols:
+            for col in numeric_cols[:3]:  # limit to 3 numeric cols for clarity
+                insights.append(
+                    f"📌 Column '{col}': mean = {df[col].mean():.2f}, min = {df[col].min()}, max = {df[col].max()}"
+                )
+            if len(numeric_cols) > 1:
+                corr = df[numeric_cols].corr().iloc[0, 1]
+                insights.append(f"🔗 Correlation between {numeric_cols[0]} and {numeric_cols[1]}: {corr:.2f}")
+        else:
+            insights.append("No numeric columns detected. Showing sample values instead:")
+            for col in df.columns[:2]:
+                insights.append(f"📌 Column '{col}': {df[col].unique()[:5]}")
+
+    except Exception as e:
+        insights.append(f"(AI failed to summarize: {e})")
+
+    return " ".join(insights)
 
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
     if request.method == "POST":
         file = request.files["file"]
-        if not file:
-            return "No file uploaded", 400
-        
-        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(filepath)
-        df = pd.read_csv(filepath)
+        if file:
+            df = pd.read_csv(file)
 
-        # Generate multiple graphs
-        graphs = []
-        numeric_cols = df.select_dtypes(include=["number"]).columns
+            # Table
+            table_html = df.head().to_html(classes="table table-striped", index=False)
 
-        if len(numeric_cols) >= 2:
-            col1, col2 = numeric_cols[0], numeric_cols[1]
+            # Graph (first 2 numeric cols only)
+            numeric_cols = df.select_dtypes(include="number").columns
+            if len(numeric_cols) >= 2:
+                fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], title="Scatter Plot")
+            elif len(numeric_cols) == 1:
+                fig = px.histogram(df, x=numeric_cols[0], title="Distribution")
+            else:
+                fig = px.histogram(df, x=df.columns[0], title="Counts")
+            graph_html = fig.to_html(full_html=False)
 
-            # Bar Chart
-            fig1 = px.bar(df, x=col1, y=col2, title=f"Bar Chart of {col1} vs {col2}")
-            graphs.append(pio.to_html(fig1, full_html=False))
+            # Insights
+            insights_text = generate_ai_insights(df)
 
-            # Line Chart
-            fig2 = px.line(df, x=col1, y=col2, title=f"Line Chart of {col1} vs {col2}")
-            graphs.append(pio.to_html(fig2, full_html=False))
+            return render_template("upload.html", table=table_html, graph=graph_html, insights=insights_text)
 
-            # Scatter Chart
-            fig3 = px.scatter(df, x=col1, y=col2, title=f"Scatter Plot of {col1} vs {col2}")
-            graphs.append(pio.to_html(fig3, full_html=False))
-
-            # Histogram (of col1)
-            fig4 = px.histogram(df, x=col1, title=f"Histogram of {col1}")
-            graphs.append(pio.to_html(fig4, full_html=False))
-
-        return render_template("results.html", tables=[df.head().to_html(classes="data")], graphs=graphs, filename=file.filename)
-
-    return render_template("upload.html")
-
-import os
+    return render_template("upload.html", table=None, graph=None, insights=None)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render gives a PORT
-    app.run(host="0.0.0.0", port=port, debug=True)
-
+    app.run(host="0.0.0.0", port=10000, debug=True)
