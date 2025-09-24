@@ -1,45 +1,42 @@
-from flask import Flask, render_template, request
+import requests
+from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import plotly.express as px
+import os
 
 app = Flask(__name__)
 
-def generate_ai_insights(df):
-    """Simple rule-based AI insights for any dataset"""
-    insights = []
-    try:
-        insights.append(f"Dataset contains {df.shape[0]} rows and {df.shape[1]} columns.")
-        numeric_cols = df.select_dtypes(include="number").columns.tolist()
+# store last uploaded dataframe for AI chat
+current_df = None
 
-        if numeric_cols:
-            for col in numeric_cols[:3]:  # limit to 3 numeric cols for clarity
-                insights.append(
-                    f"📌 Column '{col}': mean = {df[col].mean():.2f}, min = {df[col].min()}, max = {df[col].max()}"
-                )
-            if len(numeric_cols) > 1:
-                corr = df[numeric_cols].corr().iloc[0, 1]
-                insights.append(f"🔗 Correlation between {numeric_cols[0]} and {numeric_cols[1]}: {corr:.2f}")
-        else:
-            insights.append("No numeric columns detected. Showing sample values instead:")
-            for col in df.columns[:2]:
-                insights.append(f"📌 Column '{col}': {df[col].unique()[:5]}")
+# HuggingFace API setup (replace with your token if you make account)
+HF_TOKEN = os.getenv("HF_TOKEN", None)  # set via Render env vars
+HF_MODEL = "google/flan-t5-small"       # lightweight free model
 
-    except Exception as e:
-        insights.append(f"(AI failed to summarize: {e})")
-
-    return " ".join(insights)
+def ask_huggingface(question, context):
+    if not HF_TOKEN:
+        return "(No HuggingFace token set, cannot call API)"
+    payload = {"inputs": f"Context: {context}\nQuestion: {question}"}
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    r = requests.post(f"https://api-inference.huggingface.co/models/{HF_MODEL}", headers=headers, json=payload)
+    if r.status_code == 200:
+        return r.json()[0]["generated_text"]
+    else:
+        return f"(Error {r.status_code} from HuggingFace)"
 
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
+    global current_df
     if request.method == "POST":
         file = request.files["file"]
         if file:
             df = pd.read_csv(file)
+            current_df = df  # store for chat use
 
             # Table
             table_html = df.head().to_html(classes="table table-striped", index=False)
 
-            # Graph (first 2 numeric cols only)
+            # Graph
             numeric_cols = df.select_dtypes(include="number").columns
             if len(numeric_cols) >= 2:
                 fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], title="Scatter Plot")
@@ -49,12 +46,27 @@ def upload_file():
                 fig = px.histogram(df, x=df.columns[0], title="Counts")
             graph_html = fig.to_html(full_html=False)
 
-            # Insights
-            insights_text = generate_ai_insights(df)
-
-            return render_template("upload.html", table=table_html, graph=graph_html, insights=insights_text)
-
+            return render_template("upload.html", table=table_html, graph=graph_html, insights=None)
     return render_template("upload.html", table=None, graph=None, insights=None)
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    global current_df
+    data = request.get_json()
+    question = data.get("question", "")
+    if current_df is None:
+        return jsonify({"answer": "Please upload a dataset first."})
+
+    # turn dataframe into small context string
+    context = current_df.head(10).to_csv(index=False)
+
+    if HF_TOKEN:
+        answer = ask_huggingface(question, context)
+    else:
+        # fallback: rule-based
+        answer = f"(Demo) Your question was: {question}. Currently only rule-based answers available."
+
+    return jsonify({"answer": answer})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
