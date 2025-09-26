@@ -1,72 +1,101 @@
-import requests
-from flask import Flask, render_template, request, jsonify
+import os
+import io
 import pandas as pd
 import plotly.express as px
-import os
+from flask import Flask, render_template, request, jsonify
+import requests
 
 app = Flask(__name__)
+df = None  # global dataframe
 
-# store last uploaded dataframe for AI chat
-current_df = None
-
-# HuggingFace API setup (replace with your token if you make account)
-HF_TOKEN = os.getenv("HF_TOKEN", None)  # set via Render env vars
-HF_MODEL = "google/flan-t5-small"       # lightweight free model
-
-def ask_huggingface(question, context):
-    if not HF_TOKEN:
-        return "(No HuggingFace token set, cannot call API)"
-    payload = {"inputs": f"Context: {context}\nQuestion: {question}"}
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    r = requests.post(f"https://api-inference.huggingface.co/models/{HF_MODEL}", headers=headers, json=payload)
-    if r.status_code == 200:
-        return r.json()[0]["generated_text"]
-    else:
-        return f"(Error {r.status_code} from HuggingFace)"
+HF_TOKEN = os.getenv("HF_TOKEN", None)  # Hugging Face API token (set in Render/Koyeb)
 
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
-    global current_df
+    global df
     if request.method == "POST":
+        if "file" not in request.files:
+            return "No file uploaded", 400
         file = request.files["file"]
-        if file:
-            df = pd.read_csv(file)
-            current_df = df  # store for chat use
+        if file.filename == "":
+            return "Empty file", 400
 
-            # Table
-            table_html = df.head().to_html(classes="table table-striped", index=False)
+        # Load CSV into dataframe
+        df = pd.read_csv(file)
+        table_html = df.head().to_html(classes="data", index=False)
+        return render_template("upload.html", table=table_html, columns=df.columns)
 
-            # Graph
-            numeric_cols = df.select_dtypes(include="number").columns
-            if len(numeric_cols) >= 2:
-                fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], title="Scatter Plot")
-            elif len(numeric_cols) == 1:
-                fig = px.histogram(df, x=numeric_cols[0], title="Distribution")
-            else:
-                fig = px.histogram(df, x=df.columns[0], title="Counts")
-            graph_html = fig.to_html(full_html=False)
+    return render_template("upload.html", table=None, columns=[])
 
-            return render_template("upload.html", table=table_html, graph=graph_html, insights=None)
-    return render_template("upload.html", table=None, graph=None, insights=None)
+
+@app.route("/graph")
+def generate_graph():
+    global df
+    if df is None:
+        return jsonify({"error": "No data uploaded"}), 400
+
+    x = request.args.get("x")
+    y = request.args.get("y")
+    chart_type = request.args.get("type", "line")
+
+    if not x or not y:
+        return jsonify({"error": "Missing axis"}), 400
+
+    try:
+        if chart_type == "bar":
+            fig = px.bar(df, x=x, y=y)
+        elif chart_type == "scatter":
+            fig = px.scatter(df, x=x, y=y)
+        elif chart_type == "pie":
+            fig = px.pie(df, names=x, values=y)
+        elif chart_type == "box":
+            fig = px.box(df, x=x, y=y)
+        elif chart_type == "histogram":
+            fig = px.histogram(df, x=x)
+        else:
+            fig = px.line(df, x=x, y=y)
+
+        return jsonify(fig.to_dict())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/ask", methods=["POST"])
-def ask():
-    global current_df
-    data = request.get_json()
-    question = data.get("question", "")
-    if current_df is None:
-        return jsonify({"answer": "Please upload a dataset first."})
+def ask_ai():
+    global df
+    user_msg = request.json.get("message", "")
 
-    # turn dataframe into small context string
-    context = current_df.head(10).to_csv(index=False)
+    # Summarize dataset for AI
+    context = ""
+    if df is not None:
+        context = f"The dataset has {df.shape[0]} rows and {df.shape[1]} columns. Columns are: {', '.join(df.columns)}."
 
-    if HF_TOKEN:
-        answer = ask_huggingface(question, context)
-    else:
-        # fallback: rule-based
-        answer = f"(Demo) Your question was: {question}. Currently only rule-based answers available."
+    if not HF_TOKEN:
+        # fallback dummy response
+        return jsonify({"reply": f"(Demo AI) You asked: '{user_msg}'. {context}"})
 
-    return jsonify({"answer": answer})
+    try:
+        headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+        payload = {
+            "inputs": f"Context: {context}\nUser question: {user_msg}\nAnswer:"
+        }
+        resp = requests.post(
+            "https://api-inference.huggingface.co/models/google/flan-t5-base",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+
+        if resp.status_code == 200:
+            data = resp.json()
+            reply = data[0]["generated_text"]
+            return jsonify({"reply": reply})
+        else:
+            return jsonify({"reply": f"(API error {resp.status_code}) Could not fetch AI response."})
+    except Exception as e:
+        return jsonify({"reply": f"(Error) {str(e)}"})
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
