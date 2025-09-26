@@ -2,183 +2,236 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📊 Data Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <title>Data Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      display: flex;
-      height: 100vh;
+      background: #f9fafb;
+      transition: background 0.3s, color 0.3s;
     }
+    body.dark {
+      background: #111827;
+      color: white;
+    }
+
     /* Sidebar */
     .sidebar {
-      width: 60px;
-      background: #1e1e2f;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 0;
-    }
-    .sidebar button {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 20px;
-      margin: 15px 0;
-      cursor: pointer;
-      position: relative;
-    }
-    .sidebar button:hover::after {
-      content: attr(data-label);
-      position: absolute;
-      left: 60px;
+      position: fixed;
       top: 0;
-      background: #444;
-      padding: 5px 10px;
-      border-radius: 4px;
+      left: 0;
+      height: 100%;
+      width: 60px;
+      background: #1f2937;
+      overflow-x: hidden;
+      transition: width 0.3s;
+      padding-top: 20px;
       white-space: nowrap;
-      animation: slide 0.3s ease forwards;
     }
-    @keyframes slide {
-      from {opacity: 0; transform: translateX(-10px);}
-      to {opacity: 1; transform: translateX(0);}
+    .sidebar:hover {
+      width: 200px;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      font-size: 16px;
+      text-decoration: none;
+      color: white;
+    }
+    .sidebar a:hover {
+      background: #374151;
+    }
+    .sidebar i {
+      margin-right: 10px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .sidebar span {
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      transform: translateX(-10px);
+    }
+    .sidebar:hover span {
+      opacity: 1;
+      transform: translateX(0);
     }
 
     /* Main content */
-    .main {
-      flex: 1;
-      background: #f4f4f4;
+    .content {
+      margin-left: 60px;
       padding: 20px;
-      overflow-y: auto;
+      transition: margin-left 0.3s;
     }
-    body.dark .main {
-      background: #121212;
-      color: white;
+    .sidebar:hover ~ .content {
+      margin-left: 200px;
     }
-    .table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-    .table th, .table td { border: 1px solid #ddd; padding: 8px; }
-    .table th { background: #333; color: white; }
-    .graph { margin-top: 20px; }
-    .chatbox {
+
+    #preview {
+      margin-top: 20px;
       border: 1px solid #ccc;
       padding: 10px;
-      margin-top: 20px;
-      height: 300px;
-      overflow-y: auto;
-      background: white;
+      max-height: 200px;
+      overflow: auto;
     }
-    body.dark .chatbox { background: #222; color: white; }
-    .chat-input { margin-top: 10px; display: flex; }
-    .chat-input input { flex: 1; padding: 8px; }
-    .chat-input button { padding: 8px; }
+    #chart {
+      margin-top: 20px;
+    }
+
+    /* AI Chat */
+    .chatbox {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 300px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    body.dark .chatbox {
+      background: #1f2937;
+      color: white;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      max-height: 200px;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    .chat-input input {
+      flex: 1;
+      border: none;
+      padding: 8px;
+    }
+    .chat-input button {
+      border: none;
+      background: #2563eb;
+      color: white;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <!-- Sidebar -->
   <div class="sidebar">
-    <button id="darkToggle" data-label="Dark Mode">🌙</button>
-    <button onclick="document.getElementById('fileInput').click()" data-label="Upload CSV">📂</button>
-    <button data-label="Graphs">📊</button>
-    <button data-label="AI Chat" onclick="toggleChat()">🤖</button>
-    <input type="file" id="fileInput" style="display:none" onchange="uploadCSV()">
+    <a href="#" onclick="toggleDarkMode()"><i>🌙</i><span>Dark Mode</span></a>
+    <a href="#"><i>📂</i><span>Upload</span></a>
+    <a href="#"><i>📊</i><span>Charts</span></a>
+    <a href="#"><i>🤖</i><span>AI Chat</span></a>
   </div>
 
-  <!-- Main Content -->
-  <div class="main">
-    <h2>📂 Data Dashboard</h2>
+  <!-- Main -->
+  <div class="content">
+    <h1>Data Dashboard</h1>
+
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload</button>
     <div id="preview"></div>
 
-    <div id="controls" style="margin-top:10px;"></div>
-    <div class="graph" id="graph"></div>
+    <h2>Create Graph</h2>
+    <label>X-axis:</label><select id="xColumn"></select>
+    <label>Y-axis:</label><select id="yColumn"></select>
+    <select id="chartType">
+      <option value="line">Line</option>
+      <option value="bar">Bar</option>
+      <option value="scatter">Scatter</option>
+      <option value="pie">Pie</option>
+    </select>
+    <button onclick="createGraph()">Generate</button>
+    <div id="chart"></div>
+  </div>
 
-    <!-- AI Chat -->
-    <div id="chatSection" style="display:none;">
-      <h3>🤖 AI Chat</h3>
-      <div id="chatbox" class="chatbox"></div>
-      <div class="chat-input">
-        <input type="text" id="chatInput" placeholder="Ask AI about your data...">
-        <button onclick="askAI()">Send</button>
-      </div>
+  <!-- AI Chat -->
+  <div class="chatbox">
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Ask AI..." />
+      <button onclick="sendMessage()">Send</button>
     </div>
   </div>
 
-<script>
-  // Dark mode toggle
-  document.getElementById("darkToggle").onclick = () => {
-    document.body.classList.toggle("dark");
-  };
-
-  // Upload CSV
-  async function uploadCSV() {
-    let file = document.getElementById("fileInput").files[0];
-    let formData = new FormData();
-    formData.append("file", file);
-
-    let res = await axios.post("/upload", formData);
-    let data = res.data;
-    document.getElementById("preview").innerHTML = "<h3>Data Preview:</h3>" + data.preview;
-
-    let controls = `
-      <label>X-axis: <select id="x">${data.columns.map(c=>`<option>${c}</option>`)}</select></label>
-      <label>Y-axis: <select id="y">${data.columns.map(c=>`<option>${c}</option>`)}</select></label>
-      <label>Chart Type: 
-        <select id="chart">
-          <option>line</option>
-          <option>bar</option>
-          <option>scatter</option>
-          <option>pie</option>
-        </select>
-      </label>
-      <button onclick="generateGraph()">Generate Graph</button>
-    `;
-    document.getElementById("controls").innerHTML = controls;
-
-    window.currentData = res.data; // store for graphs
-  }
-
-  // Generate Graph
-  async function generateGraph() {
-    let x = document.getElementById("x").value;
-    let y = document.getElementById("y").value;
-    let chart = document.getElementById("chart").value;
-
-    let payload = {
-      data: window.currentData.previewData || window.currentData, // fallback
-      x, y, chart
-    };
-
-    // Ensure clean JSON
-    payload.data = window.currentData.data || window.currentData.previewData;
-
-    let res = await axios.post("/graph", payload);
-    if(res.data.graph){
-      document.getElementById("graph").innerHTML = `<img src="${res.data.graph}" style="max-width:100%;">`;
-    } else {
-      alert(res.data.error);
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
     }
-  }
 
-  // Toggle Chat
-  function toggleChat(){
-    let chat = document.getElementById("chatSection");
-    chat.style.display = (chat.style.display === "none") ? "block" : "none";
-  }
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
 
-  // Ask AI
-  async function askAI(){
-    let input = document.getElementById("chatInput").value;
-    if(!input) return;
+      const res = await fetch("/upload", { method: "POST", body: formData });
+      const data = await res.json();
 
-    let chatbox = document.getElementById("chatbox");
-    chatbox.innerHTML += `<div><b>You:</b> ${input}</div>`;
+      if (data.error) {
+        alert("Upload failed: " + data.error);
+        return;
+      }
 
-    let res = await axios.post("/ask", {question: input});
-    chatbox.innerHTML += `<div><b>AI:</b> ${res.data.answer}</div>`;
-    chatbox.scrollTop = chatbox.scrollHeight;
-    document.getElementById("chatInput").value = "";
-  }
-</script>
+      const preview = document.getElementById("preview");
+      preview.innerHTML = "<pre>" + JSON.stringify(data.rows, null, 2) + "</pre>";
+
+      const xSelect = document.getElementById("xColumn");
+      const ySelect = document.getElementById("yColumn");
+      xSelect.innerHTML = "";
+      ySelect.innerHTML = "";
+      data.columns.forEach(col => {
+        xSelect.innerHTML += `<option value="${col}">${col}</option>`;
+        ySelect.innerHTML += `<option value="${col}">${col}</option>`;
+      });
+    }
+
+    async function createGraph() {
+      const x = document.getElementById("xColumn").value;
+      const y = document.getElementById("yColumn").value;
+      const type = document.getElementById("chartType").value;
+
+      const res = await fetch("/graph", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ x, y, type })
+      });
+      const fig = await res.json();
+
+      if (fig.error) {
+        alert("Graph error: " + fig.error);
+        return;
+      }
+
+      Plotly.newPlot("chart", fig.data, fig.layout);
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("chatInput");
+      const msgBox = document.getElementById("chatMessages");
+
+      const userMsg = document.createElement("div");
+      userMsg.textContent = "You: " + input.value;
+      msgBox.appendChild(userMsg);
+
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: input.value })
+      });
+      const data = await res.json();
+
+      const aiMsg = document.createElement("div");
+      aiMsg.textContent = "AI: " + (data.answer || data.error);
+      msgBox.appendChild(aiMsg);
+
+      input.value = "";
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+  </script>
 </body>
 </html>
