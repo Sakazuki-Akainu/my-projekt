@@ -1,116 +1,77 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')  # for servers without display
-import matplotlib.pyplot as plt
-import io, base64, os, json
-import requests
+import plotly.express as px
 
 app = Flask(__name__)
+df = None  # store uploaded dataframe
 
-# =====================
-# ROUTES
-# =====================
 
 @app.route("/")
 def index():
     return render_template("upload.html")
 
+
 @app.route("/upload", methods=["POST"])
-def upload_file():
+def upload():
+    global df
     file = request.files.get("file")
     if not file:
         return jsonify({"error": "No file uploaded"}), 400
 
     try:
         df = pd.read_csv(file)
-        # Convert DataFrame preview to HTML
-        preview_html = df.head().to_html(classes="table table-striped", index=False)
-        # Convert column names for dropdowns
-        columns = df.columns.tolist()
-        return jsonify({"preview": preview_html, "columns": columns})
+        return jsonify({
+            "columns": df.columns.tolist(),
+            "rows": df.head(10).to_dict(orient="records")
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/graph", methods=["POST"])
-def generate_graph():
+def graph():
+    global df
+    if df is None:
+        return jsonify({"error": "No data uploaded yet"}), 400
+
     try:
-        data = request.json
-        df = pd.DataFrame(data["data"])
-        x = data["x"]
-        y = data["y"]
-        chart_type = data["chart"]
+        data = request.get_json()
+        x_col = data.get("x")
+        y_col = data.get("y")
+        chart_type = data.get("type")
 
-        plt.figure(figsize=(6, 4))
+        # ✅ convert to Python lists so JSON works
+        x = df[x_col].astype(str).tolist()
+        y = df[y_col].tolist()
+
         if chart_type == "line":
-            plt.plot(df[x], df[y])
+            fig = px.line(x=x, y=y, title=f"{y_col} vs {x_col}")
         elif chart_type == "bar":
-            plt.bar(df[x], df[y])
+            fig = px.bar(x=x, y=y, title=f"{y_col} vs {x_col}")
         elif chart_type == "scatter":
-            plt.scatter(df[x], df[y])
+            fig = px.scatter(x=x, y=y, title=f"{y_col} vs {x_col}")
         elif chart_type == "pie":
-            plt.pie(df[y], labels=df[x], autopct="%1.1f%%")
+            fig = px.pie(names=x, values=y, title=f"{y_col} distribution")
+        else:
+            return jsonify({"error": "Unknown chart type"}), 400
 
-        plt.xlabel(x)
-        plt.ylabel(y)
-        plt.title(f"{chart_type.capitalize()} Chart")
-
-        # Save image to base64
-        img = io.BytesIO()
-        plt.savefig(img, format="png")
-        img.seek(0)
-        graph_url = base64.b64encode(img.getvalue()).decode()
-        plt.close()
-        return jsonify({"graph": f"data:image/png;base64,{graph_url}"})
+        return jsonify(fig.to_dict())
     except Exception as e:
-        return jsonify({"error": f"Graph error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/ask", methods=["POST"])
-def ask_ai():
+def ask():
     try:
-        user_input = request.json.get("question", "")
-        if not user_input:
-            return jsonify({"answer": "Please ask a question."})
+        data = request.get_json()
+        question = data.get("question", "")
 
-        # Try Hugging Face or OpenAI if token available
-        hf_token = os.getenv("HF_TOKEN")
-        openai_key = os.getenv("OPENAI_API_KEY")
-
-        if openai_key:  # Use ChatGPT API
-            headers = {"Authorization": f"Bearer {openai_key}"}
-            payload = {
-                "model": "gpt-3.5-turbo",
-                "messages": [{"role": "user", "content": user_input}],
-            }
-            r = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            answer = r.json()["choices"][0]["message"]["content"]
-            return jsonify({"answer": answer})
-
-        elif hf_token:  # Use Hugging Face Inference API
-            headers = {"Authorization": f"Bearer {hf_token}"}
-            r = requests.post(
-                "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
-                headers=headers,
-                json={"inputs": user_input},
-            )
-            answer = r.json()[0]["generated_text"]
-            return jsonify({"answer": answer})
-
-        else:  # Fallback: rule-based
-            return jsonify(
-                {"answer": "AI insights are disabled. Please set OPENAI_API_KEY or HF_TOKEN."}
-            )
-
+        # Dummy response for now (replace with real API like OpenAI later)
+        answer = f"You asked: '{question}'. (This is a placeholder AI response.)"
+        return jsonify({"answer": answer})
     except Exception as e:
-        return jsonify({"answer": f"Error: {str(e)}"})
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
