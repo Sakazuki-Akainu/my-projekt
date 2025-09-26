@@ -1,5 +1,5 @@
+Flask>=3.0
+pandas
+plotly
 requests
-flask==3.1.2
-pandas==2.3.2
-matplotlib==3.10.6
-plotly==5.24.1
+openpyxl
