@@ -1,319 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Data Visualizer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
+  <meta charset="UTF-8">
+  <title>📊 Data Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <style>
-    :root {
-      --bg: #f8f9fa;
-      --card: #ffffff;
-      --text: #111;
-    }
-    body.dark {
-      --bg: #0f1720;
-      --card: #0b1220;
-      --text: #e6eef8;
-    }
     body {
-      background: var(--bg);
-      color: var(--text);
-      transition: background 0.25s, color 0.25s;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
     }
-
-    /* Left compact sidebar */
+    /* Sidebar */
     .sidebar {
-      position: fixed;
-      top: 30%;
-      left: 6px;
+      width: 60px;
+      background: #1e1e2f;
+      color: white;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      z-index: 1100;
-    }
-    .side-btn {
-      background: rgba(0,0,0,0.7);
-      color: white;
-      border: none;
-      border-radius: 0 24px 24px 0;
-      padding: 8px 10px;
-      width: 44px;
-      overflow: hidden;
-      display: flex;
       align-items: center;
-      cursor: pointer;
-      transition: width .28s ease;
+      padding: 10px 0;
     }
-    .side-btn span {
-      margin-left: 10px;
-      opacity: 0;
-      transform: translateX(-10px);
-      transition: all .28s ease;
-      white-space: nowrap;
-    }
-    .side-btn:hover {
-      width: 160px;
-    }
-    .side-btn:hover span {
-      opacity: 1;
-      transform: translateX(0);
-    }
-
-    .container-main {
-      margin-left: 80px;
-      padding: 24px;
-      max-width: 1100px;
-    }
-
-    .card-ui {
-      background: var(--card);
-      padding: 16px;
-      border-radius: 8px;
-      box-shadow: 0 6px 18px rgba(13,17,23,0.06);
-      margin-bottom: 20px;
-      color: var(--text);
-    }
-
-    /* chatbox */
-    #chatbox {
-      position: fixed;
-      bottom: 18px;
-      left: 80px;
-      width: 360px;
-      max-height: 420px;
-      display: none;
-      flex-direction: column;
-      border-radius: 10px;
-      overflow: hidden;
-      z-index: 1200;
-    }
-    #chatbox .header {
-      background: rgba(0,0,0,0.75);
+    .sidebar button {
+      background: none;
+      border: none;
       color: white;
-      padding: 10px;
+      font-size: 20px;
+      margin: 15px 0;
+      cursor: pointer;
+      position: relative;
     }
-    #chat-messages {
-      padding: 10px;
-      background: var(--card);
-      color: var(--text);
-      flex: 1;
-      overflow-y: auto;
-      font-size: 14px;
+    .sidebar button:hover::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 60px;
+      top: 0;
+      background: #444;
+      padding: 5px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      animation: slide 0.3s ease forwards;
     }
-    #chat-input {
-      display: flex;
-      gap: 6px;
-      padding: 8px;
-      background: var(--card);
-    }
-    #graph {
-      min-height: 400px;
+    @keyframes slide {
+      from {opacity: 0; transform: translateX(-10px);}
+      to {opacity: 1; transform: translateX(0);}
     }
 
-    /* smaller responsive tweaks */
-    @media (max-width: 800px) {
-      .container-main { margin-left: 16px; padding: 12px; }
-      #chatbox { left: 12px; width: calc(100% - 24px); }
+    /* Main content */
+    .main {
+      flex: 1;
+      background: #f4f4f4;
+      padding: 20px;
+      overflow-y: auto;
     }
+    body.dark .main {
+      background: #121212;
+      color: white;
+    }
+    .table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    .table th, .table td { border: 1px solid #ddd; padding: 8px; }
+    .table th { background: #333; color: white; }
+    .graph { margin-top: 20px; }
+    .chatbox {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 20px;
+      height: 300px;
+      overflow-y: auto;
+      background: white;
+    }
+    body.dark .chatbox { background: #222; color: white; }
+    .chat-input { margin-top: 10px; display: flex; }
+    .chat-input input { flex: 1; padding: 8px; }
+    .chat-input button { padding: 8px; }
   </style>
 </head>
 <body>
-  <!-- sidebar -->
+  <!-- Sidebar -->
   <div class="sidebar">
-    <button id="darkToggle" class="side-btn">🌙 <span>Toggle Dark</span></button>
-    <button id="aiToggle" class="side-btn">🤖 <span>AI Chat</span></button>
+    <button id="darkToggle" data-label="Dark Mode">🌙</button>
+    <button onclick="document.getElementById('fileInput').click()" data-label="Upload CSV">📂</button>
+    <button data-label="Graphs">📊</button>
+    <button data-label="AI Chat" onclick="toggleChat()">🤖</button>
+    <input type="file" id="fileInput" style="display:none" onchange="uploadCSV()">
   </div>
 
-  <div class="container-main">
-    <h2 class="mb-3">📊 Data Visualizer</h2>
+  <!-- Main Content -->
+  <div class="main">
+    <h2>📂 Data Dashboard</h2>
+    <div id="preview"></div>
 
-    <!-- upload -->
-    <div class="card-ui">
-      <form id="uploadForm" method="POST" enctype="multipart/form-data">
-        <div class="row g-2 align-items-center">
-          <div class="col-auto">
-            <input class="form-control" type="file" name="file" id="fileInput" required />
-          </div>
-          <div class="col-auto">
-            <button class="btn btn-primary" type="submit">Upload CSV / Excel</button>
-          </div>
-          <div class="col-auto">
-            <button id="autoDashboard" type="button" class="btn btn-outline-secondary">Auto Dashboard</button>
-          </div>
-        </div>
-      </form>
-    </div>
+    <div id="controls" style="margin-top:10px;"></div>
+    <div class="graph" id="graph"></div>
 
-    <!-- preview + controls -->
-    {% if table %}
-      <div class="card-ui">
-        <h5>Preview (first rows)</h5>
-        <div class="table-responsive">{{ table|safe }}</div>
+    <!-- AI Chat -->
+    <div id="chatSection" style="display:none;">
+      <h3>🤖 AI Chat</h3>
+      <div id="chatbox" class="chatbox"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Ask AI about your data...">
+        <button onclick="askAI()">Send</button>
       </div>
-
-      <div class="card-ui">
-        <h5>Chart Controls</h5>
-        <div class="row g-2">
-          <div class="col-md-4">
-            <label class="form-label">X axis</label>
-            <select id="xAxis" class="form-select">
-              {% for c in columns %}
-                <option value="{{c}}">{{c}}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Y axis</label>
-            <select id="yAxis" class="form-select">
-              <option value="">(optional)</option>
-              {% for c in columns %}
-                <option value="{{c}}">{{c}}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Chart type</label>
-            <select id="chartType" class="form-select">
-              <option value="line">Line</option>
-              <option value="bar">Bar</option>
-              <option value="scatter">Scatter</option>
-              <option value="pie">Pie</option>
-              <option value="histogram">Histogram</option>
-              <option value="box">Box</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="mt-3">
-          <button id="genBtn" class="btn btn-success">Generate Graph</button>
-          <button id="downloadCsvBtn" class="btn btn-outline-primary">Download Processed CSV</button>
-        </div>
-      </div>
-
-      <div class="card-ui">
-        <h5>Graph</h5>
-        <div id="graph"></div>
-      </div>
-    {% else %}
-      <div class="card-ui">
-        <p>No dataset loaded yet — upload a CSV or Excel file to begin.</p>
-      </div>
-    {% endif %}
-  </div>
-
-  <!-- Chatbox -->
-  <div id="chatbox" class="d-flex flex-column shadow">
-    <div class="header d-flex justify-content-between align-items-center">
-      <strong>AI Chat</strong>
-      <button id="closeChat" class="btn btn-sm btn-light">Close</button>
-    </div>
-    <div id="chat-messages"></div>
-    <div id="chat-input">
-      <input id="chat-input-text" class="form-control" placeholder="Ask about the dataset..." />
-      <button id="chat-send" class="btn btn-primary">Send</button>
     </div>
   </div>
 
-  <script>
-    // toggle dark mode
-    const darkToggle = document.getElementById("darkToggle");
-    darkToggle.addEventListener("click", () => {
-      document.body.classList.toggle("dark");
-    });
+<script>
+  // Dark mode toggle
+  document.getElementById("darkToggle").onclick = () => {
+    document.body.classList.toggle("dark");
+  };
 
-    // ai chat toggle
-    const aiToggle = document.getElementById("aiToggle");
-    const chatbox = document.getElementById("chatbox");
-    const closeChat = document.getElementById("closeChat");
-    aiToggle.addEventListener("click", () => {
-      chatbox.style.display = chatbox.style.display === "flex" ? "none" : "flex";
-    });
-    closeChat.addEventListener("click", () => chatbox.style.display = "none");
+  // Upload CSV
+  async function uploadCSV() {
+    let file = document.getElementById("fileInput").files[0];
+    let formData = new FormData();
+    formData.append("file", file);
 
-    // Send chat to backend /ask
-    document.getElementById("chat-send").addEventListener("click", sendMessage);
-    document.getElementById("chat-input-text").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
+    let res = await axios.post("/upload", formData);
+    let data = res.data;
+    document.getElementById("preview").innerHTML = "<h3>Data Preview:</h3>" + data.preview;
 
-    async function sendMessage() {
-      const input = document.getElementById("chat-input-text");
-      const msg = input.value.trim();
-      if (!msg) return;
-      appendChat("You", msg);
-      input.value = "";
+    let controls = `
+      <label>X-axis: <select id="x">${data.columns.map(c=>`<option>${c}</option>`)}</select></label>
+      <label>Y-axis: <select id="y">${data.columns.map(c=>`<option>${c}</option>`)}</select></label>
+      <label>Chart Type: 
+        <select id="chart">
+          <option>line</option>
+          <option>bar</option>
+          <option>scatter</option>
+          <option>pie</option>
+        </select>
+      </label>
+      <button onclick="generateGraph()">Generate Graph</button>
+    `;
+    document.getElementById("controls").innerHTML = controls;
 
-      try {
-        const res = await fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg })
-        });
-        const j = await res.json();
-        appendChat("AI", j.reply || j.answer || "No reply");
-      } catch (err) {
-        appendChat("AI", "Error contacting AI backend.");
-      }
+    window.currentData = res.data; // store for graphs
+  }
+
+  // Generate Graph
+  async function generateGraph() {
+    let x = document.getElementById("x").value;
+    let y = document.getElementById("y").value;
+    let chart = document.getElementById("chart").value;
+
+    let payload = {
+      data: window.currentData.previewData || window.currentData, // fallback
+      x, y, chart
+    };
+
+    // Ensure clean JSON
+    payload.data = window.currentData.data || window.currentData.previewData;
+
+    let res = await axios.post("/graph", payload);
+    if(res.data.graph){
+      document.getElementById("graph").innerHTML = `<img src="${res.data.graph}" style="max-width:100%;">`;
+    } else {
+      alert(res.data.error);
     }
+  }
 
-    function appendChat(who, text) {
-      const container = document.getElementById("chat-messages");
-      const el = document.createElement("div");
-      el.innerHTML = `<b>${who}:</b> ${escapeHtml(text)}`;
-      container.appendChild(el);
-      container.scrollTop = container.scrollHeight;
-    }
-    function escapeHtml(str){ return str.replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  // Toggle Chat
+  function toggleChat(){
+    let chat = document.getElementById("chatSection");
+    chat.style.display = (chat.style.display === "none") ? "block" : "none";
+  }
 
-    // Generate graph button
-    const genBtn = document.getElementById("genBtn");
-    if (genBtn) genBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const x = document.getElementById("xAxis").value;
-      const y = document.getElementById("yAxis").value;
-      const type = document.getElementById("chartType").value;
+  // Ask AI
+  async function askAI(){
+    let input = document.getElementById("chatInput").value;
+    if(!input) return;
 
-      if (!x) { alert("Choose X axis"); return; }
-      // build query
-      const params = new URLSearchParams({ x, type });
-      if (y) params.set("y", y);
-      const res = await fetch("/graph?" + params.toString());
-      const j = await res.json();
-      if (j.error) {
-        alert("Graph error: " + j.error);
-        return;
-      }
-      // Plotly expects arrays: data, layout
-      const data = j.data || (Array.isArray(j['data']) ? j['data'] : j['data']);
-      const layout = j.layout || {};
-      Plotly.react('graph', data, layout, {responsive: true});
-    });
+    let chatbox = document.getElementById("chatbox");
+    chatbox.innerHTML += `<div><b>You:</b> ${input}</div>`;
 
-    // Download processed CSV (server-side not implemented -> fallback client: download shown table as CSV)
-    document.getElementById("downloadCsvBtn").addEventListener("click", () => {
-      // if table exists, download displayed preview only
-      const table = document.querySelector(".table");
-      if (!table) { alert("No table to download."); return; }
-      // convert HTML table to CSV
-      const rows = Array.from(table.querySelectorAll("tr")).map(tr => Array.from(tr.querySelectorAll("th,td")).map(td => td.innerText.replace(/\n/g,' ').trim()));
-      const csv = rows.map(r => r.map(cell => `"${cell.replace(/"/g,'""')}"`).join(",")).join("\n");
-      const url = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
-      const a = document.createElement("a"); a.href = url; a.download = "export.csv"; a.click(); URL.revokeObjectURL(url);
-    });
-
-    // Auto Dashboard convenience button -> generate default graph if columns present
-    document.getElementById("autoDashboard")?.addEventListener("click", () => {
-      const xsel = document.getElementById("xAxis");
-      const ysel = document.getElementById("yAxis");
-      // choose first column(s)
-      if (xsel.options.length > 0) xsel.selectedIndex = 0;
-      if (ysel.options.length > 1) ysel.selectedIndex = 1;
-      document.getElementById("chartType").value = "bar";
-      genBtn.click();
-    });
-  </script>
+    let res = await axios.post("/ask", {question: input});
+    chatbox.innerHTML += `<div><b>AI:</b> ${res.data.answer}</div>`;
+    chatbox.scrollTop = chatbox.scrollHeight;
+    document.getElementById("chatInput").value = "";
+  }
+</script>
 </body>
 </html>
