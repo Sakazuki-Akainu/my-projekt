@@ -2,124 +2,203 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Data Analyzer</title>
+  <title>Data Visualizer</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    :root {
-      --bg-color: #ffffff;
-      --text-color: #000000;
-      --card-color: #f5f5f5;
-    }
-    .dark-mode {
-      --bg-color: #1e1e1e;
-      --text-color: #ffffff;
-      --card-color: #333333;
-    }
     body {
       font-family: Arial, sans-serif;
-      background: var(--bg-color);
-      color: var(--text-color);
-      text-align: center;
-      padding: 20px;
+      margin: 0;
+      padding: 0;
+      transition: background 0.3s, color 0.3s;
     }
-    .card {
-      background: var(--card-color);
-      padding: 15px;
-      border-radius: 10px;
-      margin: 10px auto;
-      width: 80%;
+    body.dark {
+      background: #121212;
+      color: #eee;
     }
-    button {
-      padding: 10px 20px;
-      margin: 5px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    #darkToggle {
-      background: #444;
-      color: white;
-    }
-    #insights {
-      margin-top: 20px;
-      font-size: 1.1em;
-      font-weight: bold;
-    }
-    .dark-toggle {
+
+    /* Sidebar with toggle + AI button */
+    .sidebar {
       position: fixed;
-      top: 20px;
-      left: 20px;
+      top: 20%;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .side-btn {
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 0 25px 25px 0;
+      padding: 10px;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      cursor: pointer;
-      background: #444;
-      color: white;
-      padding: 10px;
-      border-radius: 50px;
-      transition: all 0.3s ease;
-      overflow: hidden;
+      transition: width 0.3s ease;
       width: 40px;
-    }
-    .dark-toggle span {
-      margin-left: 10px;
+      overflow: hidden;
       white-space: nowrap;
-      opacity: 0;
-      transform: translateX(-20px);
-      transition: all 0.3s ease;
     }
-    .dark-toggle:hover {
+    .side-btn span {
+      margin-left: 10px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .side-btn:hover {
       width: 150px;
     }
-    .dark-toggle:hover span {
+    .side-btn:hover span {
       opacity: 1;
-      transform: translateX(0);
+    }
+
+    /* Upload section */
+    .container {
+      padding: 20px;
+      margin-left: 60px;
+    }
+
+    /* Chatbox */
+    #chatbox {
+      position: fixed;
+      bottom: 20px;
+      left: 60px;
+      width: 300px;
+      max-height: 400px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      display: none;
+      flex-direction: column;
+    }
+    #chatbox.dark {
+      background: #1e1e1e;
+      color: #eee;
+      border: 1px solid #555;
+    }
+    #chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    #chat-input {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    #chat-input input {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      outline: none;
+    }
+    #chat-input button {
+      padding: 8px 12px;
+      border: none;
+      cursor: pointer;
+      background: #333;
+      color: white;
     }
   </style>
 </head>
 <body>
-
-<div class="dark-toggle" id="darkToggle">
-  🌙 <span>Toggle Dark Mode</span>
-</div>
-
-<div class="card" style="margin-top:20px; text-align:left;">
-  <h2>🤖 AI Chat</h2>
-  <div id="chatbox" style="height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; background:var(--card-color);">
-    <p><b>AI:</b> Ask me anything about your data!</p>
+  <!-- Sidebar buttons -->
+  <div class="sidebar">
+    <button id="darkToggle" class="side-btn">🌙 <span>Dark Mode</span></button>
+    <button id="aiToggle" class="side-btn">🤖 <span>AI Chat</span></button>
   </div>
-  <input type="text" id="userInput" placeholder="Type your question..." style="width:70%;">
-  <button onclick="sendMessage()">Send</button>
-</div>
 
-<script>
-  document.getElementById("darkToggle").addEventListener("click", () => {
-    document.body.classList.toggle("dark-mode");
-  });
+  <!-- Upload and Data -->
+  <div class="container">
+    <h2>Upload Your CSV</h2>
+    <form action="/" method="POST" enctype="multipart/form-data">
+      <input type="file" name="file" required>
+      <button type="submit">Upload CSV</button>
+    </form>
 
-  async function sendMessage() {
-    let input = document.getElementById("userInput");
-    let message = input.value.trim();
-    if (!message) return;
+    {% if table %}
+      <h3>Data Preview:</h3>
+      <div>{{ table|safe }}</div>
 
-    let chatbox = document.getElementById("chatbox");
-    chatbox.innerHTML += `<p><b>You:</b> ${message}</p>`;
-    input.value = "";
+      <h3>Generate Graph:</h3>
+      <label>X-axis:</label>
+      <select id="x-axis">
+        {% for col in columns %}
+          <option value="{{col}}">{{col}}</option>
+        {% endfor %}
+      </select>
 
-    try {
-      let response = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: message })
-      });
-      let data = await response.json();
-      chatbox.innerHTML += `<p><b>AI:</b> ${data.answer}</p>`;
-    } catch (error) {
-      chatbox.innerHTML += `<p><b>AI:</b> Sorry, something went wrong.</p>`;
+      <label>Y-axis:</label>
+      <select id="y-axis">
+        {% for col in columns %}
+          <option value="{{col}}">{{col}}</option>
+        {% endfor %}
+      </select>
+
+      <label>Chart Type:</label>
+      <select id="chart-type">
+        <option value="line">Line</option>
+        <option value="bar">Bar</option>
+        <option value="scatter">Scatter</option>
+        <option value="pie">Pie</option>
+        <option value="box">Box</option>
+        <option value="histogram">Histogram</option>
+      </select>
+
+      <button onclick="generateGraph()">Generate Graph</button>
+
+      <div id="graph"></div>
+    {% endif %}
+  </div>
+
+  <!-- Chatbox -->
+  <div id="chatbox">
+    <div id="chat-messages"></div>
+    <div id="chat-input">
+      <input type="text" id="user-msg" placeholder="Ask AI about your data...">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Dark mode toggle
+    const toggleBtn = document.getElementById("darkToggle");
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      document.getElementById("chatbox").classList.toggle("dark");
+    });
+
+    // AI Chat toggle
+    const aiBtn = document.getElementById("aiToggle");
+    const chatbox = document.getElementById("chatbox");
+    aiBtn.addEventListener("click", () => {
+      chatbox.style.display = chatbox.style.display === "flex" ? "none" : "flex";
+    });
+
+    // Dummy AI message
+    function sendMessage() {
+      const input = document.getElementById("user-msg");
+      const msg = input.value.trim();
+      if (!msg) return;
+      const chat = document.getElementById("chat-messages");
+      chat.innerHTML += `<div><b>You:</b> ${msg}</div>`;
+      chat.innerHTML += `<div><b>AI:</b> (This is where AI API will reply)</div>`;
+      input.value = "";
+      chat.scrollTop = chat.scrollHeight;
     }
 
-    chatbox.scrollTop = chatbox.scrollHeight;
-  }
-</script>
+    // Graph generation (client side with Plotly JSON from Flask later)
+    function generateGraph() {
+      const x = document.getElementById("x-axis").value;
+      const y = document.getElementById("y-axis").value;
+      const type = document.getElementById("chart-type").value;
 
+      fetch(`/graph?x=${x}&y=${y}&type=${type}`)
+        .then(res => res.json())
+        .then(data => {
+          Plotly.newPlot("graph", data.data, data.layout);
+        });
+    }
+  </script>
 </body>
 </html>
