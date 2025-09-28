@@ -1,80 +1,54 @@
-from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import plotly.express as px
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
-df = None  # store uploaded dataframe
 
-
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template("upload.html")
+    table_html = None
+    graph_html = None
 
+    if request.method == "POST":
+        file = request.files.get("file")
+        if file:
+            df = pd.read_csv(file)
 
-@app.route("/upload", methods=["POST"])
-def upload():
-    global df
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"error": "No file uploaded"}), 400
+            # Preview table
+            table_html = df.head().to_html(classes="table table-striped", index=False)
 
-    try:
-        df = pd.read_csv(file)
-        return jsonify({
-            "columns": df.columns.tolist(),
-            "rows": df.head(10).to_dict(orient="records")
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            # Interactive Plotly bar chart (animated if "Subject" column exists)
+            if "Subject" in df.columns:
+                fig = px.bar(
+                    df,
+                    x="Student",
+                    y="Marks",
+                    color="Marks",
+                    animation_frame="Subject",
+                    hover_data=df.columns,
+                    title="Student Marks per Subject"
+                )
+            else:
+                fig = px.bar(
+                    df,
+                    x=df.columns[0],
+                    y=df.columns[1],
+                    color=df.columns[1],
+                    hover_data=df.columns,
+                    title=f"{df.columns[1]} vs {df.columns[0]}"
+                )
 
+            fig.update_layout(
+                template="plotly_dark",
+                transition_duration=500
+            )
 
-@app.route("/graph", methods=["POST"])
-def graph():
-    global df
-    if df is None:
-        return jsonify({"error": "No data uploaded yet"}), 400
+            graph_html = fig.to_html(full_html=False)
 
-    try:
-        data = request.get_json()
-        x_col = data.get("x")
-        y_col = data.get("y")
-        chart_type = data.get("type")
+    return render_template("upload.html", table_html=table_html, graph_html=graph_html)
 
-        # ✅ convert to Python lists so JSON works
-        x = df[x_col].astype(str).tolist()
-        y = df[y_col].tolist()
-
-        if chart_type == "line":
-            fig = px.line(x=x, y=y, title=f"{y_col} vs {x_col}")
-        elif chart_type == "bar":
-            fig = px.bar(x=x, y=y, title=f"{y_col} vs {x_col}")
-        elif chart_type == "scatter":
-            fig = px.scatter(x=x, y=y, title=f"{y_col} vs {x_col}")
-        elif chart_type == "pie":
-            fig = px.pie(names=x, values=y, title=f"{y_col} distribution")
-        else:
-            return jsonify({"error": "Unknown chart type"}), 400
-
-        return jsonify(fig.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/ask", methods=["POST"])
-def ask():
-    try:
-        data = request.get_json()
-        question = data.get("question", "")
-
-        # Dummy response for now (replace with real API like OpenAI later)
-        answer = f"You asked: '{question}'. (This is a placeholder AI response.)"
-        return jsonify({"answer": answer})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-import os
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render provides PORT
+    import os
+    port = int(os.environ.get("PORT", 5000))  # Render fix
     app.run(host="0.0.0.0", port=port, debug=True)
