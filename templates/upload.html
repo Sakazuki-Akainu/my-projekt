@@ -131,7 +131,6 @@
   <!-- Sidebar -->
   <div class="sidebar">
     <a onclick="toggleDarkMode()"><i>🌙</i><span>Dark Mode</span></a>
-    <a onclick="document.getElementById('fileInput').click()"><i>📂</i><span>Upload File</span></a>
     <a onclick="openDashboard()"><i>📊</i><span>Dashboard</span></a>
     <a onclick="downloadCSV()"><i>⬇️</i><span>Download Data</span></a>
     <a><i>🤖</i><span>AI Chat</span></a>
@@ -141,10 +140,13 @@
   <div class="content">
     <h1>Data Dashboard</h1>
 
-    <input type="file" id="fileInput" style="display:none;" />
+    <!-- Upload Section -->
+    <h2>Upload File</h2>
+    <input type="file" id="fileInput" />
     <button onclick="uploadFile()">Upload</button>
     <div id="preview"></div>
 
+    <!-- Graph Section -->
     <h2>Create Graph</h2>
     <label>X-axis:</label><select id="xColumn"></select>
     <label>Y-axis:</label><select id="yColumn"></select>
@@ -190,7 +192,7 @@
         return;
       }
 
-      uploadedData = data; // save for later use
+      uploadedData = data;
 
       const preview = document.getElementById("preview");
       preview.innerHTML = "<pre>" + JSON.stringify(data.rows, null, 2) + "</pre>";
@@ -222,42 +224,10 @@
         return;
       }
 
-      // Add animations depending on chart type
       if (!chartPlotted) {
         Plotly.newPlot("chart", fig.data, fig.layout, { responsive: true });
         chartPlotted = true;
       } else {
-        Plotly.animate("chart", {
-          data: fig.data,
-          layout: fig.layout
-        }, {
-          transition: { duration: 800, easing: "cubic-in-out" },
-          frame: { duration: 800 }
-        });
-      }
-
-      // Add growth animation
-      if (type === "bar" || type === "line" || type === "scatter") {
-        fig.data.forEach(trace => {
-          let zeros = Array(trace.y.length).fill(0);
-          Plotly.newPlot("chart", [{
-            ...trace,
-            y: zeros
-          }], fig.layout);
-
-          Plotly.animate("chart", {
-            data: fig.data,
-            layout: fig.layout
-          }, {
-            transition: { duration: 800, easing: "cubic-in-out" },
-            frame: { duration: 800 }
-          });
-        });
-      } else if (type === "pie") {
-        let zeros = Array(fig.data[0].values.length).fill(0);
-        let trace = { ...fig.data[0], values: zeros };
-        Plotly.newPlot("chart", [trace], fig.layout);
-
         Plotly.animate("chart", {
           data: fig.data,
           layout: fig.layout
