@@ -28,6 +28,7 @@
       transition: width 0.3s;
       padding-top: 20px;
       white-space: nowrap;
+      z-index: 100;
     }
     .sidebar:hover {
       width: 200px;
@@ -39,6 +40,7 @@
       font-size: 16px;
       text-decoration: none;
       color: white;
+      cursor: pointer;
     }
     .sidebar a:hover {
       background: #374151;
@@ -74,6 +76,11 @@
       padding: 10px;
       max-height: 200px;
       overflow: auto;
+      background: white;
+    }
+    body.dark #preview {
+      background: #1f2937;
+      color: white;
     }
     #chart {
       margin-top: 20px;
@@ -123,17 +130,18 @@
 <body>
   <!-- Sidebar -->
   <div class="sidebar">
-    <a href="#" onclick="toggleDarkMode()"><i>🌙</i><span>Dark Mode</span></a>
-    <a href="#"><i>📂</i><span>Upload</span></a>
-    <a href="#"><i>📊</i><span>Charts</span></a>
-    <a href="#"><i>🤖</i><span>AI Chat</span></a>
+    <a onclick="toggleDarkMode()"><i>🌙</i><span>Dark Mode</span></a>
+    <a onclick="document.getElementById('fileInput').click()"><i>📂</i><span>Upload File</span></a>
+    <a onclick="openDashboard()"><i>📊</i><span>Dashboard</span></a>
+    <a onclick="downloadCSV()"><i>⬇️</i><span>Download Data</span></a>
+    <a><i>🤖</i><span>AI Chat</span></a>
   </div>
 
   <!-- Main -->
   <div class="content">
     <h1>Data Dashboard</h1>
 
-    <input type="file" id="fileInput" />
+    <input type="file" id="fileInput" style="display:none;" />
     <button onclick="uploadFile()">Upload</button>
     <div id="preview"></div>
 
@@ -160,12 +168,17 @@
   </div>
 
   <script>
+    let uploadedData = null;
+    let chartPlotted = false;
+
     function toggleDarkMode() {
       document.body.classList.toggle("dark");
     }
 
     async function uploadFile() {
       const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) return alert("Please select a file first!");
+
       const formData = new FormData();
       formData.append("file", fileInput.files[0]);
 
@@ -176,6 +189,8 @@
         alert("Upload failed: " + data.error);
         return;
       }
+
+      uploadedData = data; // save for later use
 
       const preview = document.getElementById("preview");
       preview.innerHTML = "<pre>" + JSON.stringify(data.rows, null, 2) + "</pre>";
@@ -207,7 +222,64 @@
         return;
       }
 
-      Plotly.newPlot("chart", fig.data, fig.layout);
+      // Add animations depending on chart type
+      if (!chartPlotted) {
+        Plotly.newPlot("chart", fig.data, fig.layout, { responsive: true });
+        chartPlotted = true;
+      } else {
+        Plotly.animate("chart", {
+          data: fig.data,
+          layout: fig.layout
+        }, {
+          transition: { duration: 800, easing: "cubic-in-out" },
+          frame: { duration: 800 }
+        });
+      }
+
+      // Add growth animation
+      if (type === "bar" || type === "line" || type === "scatter") {
+        fig.data.forEach(trace => {
+          let zeros = Array(trace.y.length).fill(0);
+          Plotly.newPlot("chart", [{
+            ...trace,
+            y: zeros
+          }], fig.layout);
+
+          Plotly.animate("chart", {
+            data: fig.data,
+            layout: fig.layout
+          }, {
+            transition: { duration: 800, easing: "cubic-in-out" },
+            frame: { duration: 800 }
+          });
+        });
+      } else if (type === "pie") {
+        let zeros = Array(fig.data[0].values.length).fill(0);
+        let trace = { ...fig.data[0], values: zeros };
+        Plotly.newPlot("chart", [trace], fig.layout);
+
+        Plotly.animate("chart", {
+          data: fig.data,
+          layout: fig.layout
+        }, {
+          transition: { duration: 800, easing: "cubic-in-out" },
+          frame: { duration: 800 }
+        });
+      }
+    }
+
+    function downloadCSV() {
+      if (!uploadedData) return alert("No data uploaded yet!");
+      const blob = new Blob([uploadedData.csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "data.csv";
+      a.click();
+    }
+
+    function openDashboard() {
+      alert("🚀 Dashboard mode coming soon: auto insights + graphs!");
     }
 
     async function sendMessage() {
