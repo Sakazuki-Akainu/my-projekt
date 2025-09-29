@@ -4,3 +4,4 @@ plotly
 requests
 openpyxl
 matplotlib
+xlrd
