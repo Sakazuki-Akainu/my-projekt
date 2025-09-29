@@ -4,18 +4,58 @@
     <title>Generated Graphs</title>
     <script src="https://cdn.plotly.com/plotly-latest.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; }
-        .graph-item { margin: 20px 0; }
+        body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+        h2 { text-align: center; }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));  /* Responsive like your image */
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .graph-item {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.3s;  /* Hover lift for animation */
+        }
+        .graph-item:hover {
+            transform: translateY(-5px);  /* Card pops on hover */
+        }
+        .graph-title {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        a { display: block; margin-top: 10px; color: #2563eb; }
     </style>
 </head>
 <body>
     <h2>Generated Graphs</h2>
-    {% for graph in graphs %}
-        <div class="graph-item">
-            <a href="/download_graph?graph={{ loop.index0 }}">⬇ Download</a>
-            {{ graph|safe }}
-        </div>
-    {% endfor %}
-    <a href="/">⬅ Upload Another File</a>
+    <div class="gallery">
+        {% for graph, title in graphs %}
+            <div class="graph-item">
+                <div class="graph-title">{{ title }}</div>
+                {{ graph|safe }}
+                <a href="/download_graph?graph={{ loop.index0 }}">⬇ Download</a>
+            </div>
+        {% endfor %}
+    </div>
+    <a href="/" style="text-align: center; display: block; margin-top: 20px;">⬅ Upload Another File</a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.js-plotly-plot').forEach(chart => {
+                chart.on('plotly_hover', function(data) {
+                    Plotly.restyle(chart, { 'marker.opacity': 1, 'marker.line.width': 3 }, [data.points[0].curveNumber]);
+                });
+                chart.on('plotly_unhover', function(data) {
+                    Plotly.restyle(chart, { 'marker.opacity': 0.7, 'marker.line.width': 1 }, [data.points[0].curveNumber]);
+                });
+            });
+        });
+    </script>
 </body>
 </html>
