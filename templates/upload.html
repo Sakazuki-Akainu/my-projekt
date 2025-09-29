@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Data Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -35,6 +36,262 @@
     .sidebar a {
       display: flex;
       align-items: center;
+      padding: 12px;
+      font-size: 16px;
+      text-decoration: none;
+      color: white;
+      cursor: pointer;
+    }
+    .sidebar a:hover {
+      background: #374151;
+    }
+    .sidebar i {
+      margin-right: 10px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .sidebar span {
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      transform: translateX(-10px);
+    }
+    .sidebar:hover span {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .content {
+      margin-left: 60px;
+      padding: 20px;
+      transition: margin-left 0.3s;
+    }
+    .sidebar:hover ~ .content {
+      margin-left: 200px;
+    }
+
+    #preview {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      max-height: 200px;
+      overflow: auto;
+      background: white;
+    }
+    body.dark #preview {
+      background: #1f2937;
+      color: white;
+    }
+    #chart {
+      margin-top: 20px;
+    }
+
+    .chatbox {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 300px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    body.dark .chatbox {
+      background: #1f2937;
+      color: white;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      max-height: 200px;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    .chat-input input {
+      flex: 1;
+      border: none;
+      padding: 8px;
+    }
+    .chat-input button {
+      border: none;
+      background: #2563eb;
+      color: white;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <a onclick="toggleDarkMode()"><i>🌙</i><span>Dark Mode</span></a>
+    <a onclick="openDashboard()"><i>📊</i><span>Dashboard</span></a>
+    <a onclick="downloadCSV()"><i>⬇️</i><span>Download Data</span></a>
+  </div>
+
+  <div class="content">
+    <h1>Data Dashboard</h1>
+    <h2>Upload File</h2>
+    <input type="file" id="fileInput" accept=".csv,.xlsx" />
+    <button onclick="uploadFile()">Upload</button>
+    <div id="preview"></div>
+
+    <h2>Create Graph</h2>
+    <label>X-axis:</label><select id="xColumn"></select>
+    <label>Y-axis:</label><select id="yColumn"></select>
+    <select id="chartType">
+      <option value="line">Line</option>
+      <option value="bar">Bar</option>
+      <option value="scatter">Scatter</option>
+      <option value="pie">Pie</option>
+    </select>
+    <button onclick="createGraph()">Generate</button>
+    <div id="chart"></div>
+  </div>
+
+  <div class="chatbox">
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Ask AI..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    let uploadedData = null;
+    let chartPlotted = false;
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) {
+        alert("Please select a file first!");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
+        alert("Please upload a CSV or XLSX file!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = e.target.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          uploadedData = {
+            columns: XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0],
+            rows: XLSX.utils.sheet_to_json(worksheet),
+            csv: XLSX.utils.sheet_to_csv(worksheet)
+          };
+
+          const preview = document.getElementById("preview");
+          preview.innerHTML = "<pre>" + JSON.stringify(uploadedData.rows, null, 2) + "</pre>";
+
+          const xSelect = document.getElementById("xColumn");
+          const ySelect = document.getElementById("yColumn");
+          xSelect.innerHTML = "";
+          ySelect.innerHTML = "";
+          uploadedData.columns.forEach(col => {
+            xSelect.innerHTML += `<option value="${col}">${col}</option>`;
+            ySelect.innerHTML += `<option value="${col}">${col}</option>`;
+          });
+        } catch (error) {
+          alert("Error parsing file: " + error.message);
+        }
+      };
+      reader.onerror = function () {
+        alert("Error reading file!");
+      };
+      reader.readAsBinaryString(file);
+    }
+
+    async function createGraph() {
+      if (!uploadedData) {
+        alert("No data uploaded yet!");
+        return;
+      }
+
+      const x = document.getElementById("xColumn").value;
+      const y = document.getElementById("yColumn").value;
+      const type = document.getElementById("chartType").value;
+
+      const xData = uploadedData.rows.map(row => row[x]);
+      const yData = uploadedData.rows.map(row => parseFloat(row[y])).filter(val => !isNaN(val));
+
+      const fig = {
+        data: [{
+          x: xData,
+          y: yData,
+          type: type === 'pie' ? 'pie' : type,
+          mode: type === 'scatter' ? 'markers' : type === 'line' ? 'lines' : undefined,
+          labels: type === 'pie' ? xData : undefined,
+          values: type === 'pie' ? yData : undefined,
+        }],
+        layout: {
+          title: `${y} vs ${x}`,
+          xaxis: { title: x },
+          yaxis: { title: y }
+        }
+      };
+
+      if (!chartPlotted) {
+        Plotly.newPlot("chart", fig.data, fig.layout, { responsive: true });
+        chartPlotted = true;
+      } else {
+        Plotly.animate("chart", {
+          data: fig.data,
+          layout: fig.layout
+        }, {
+          transition: { duration: 800, easing: "cubic-in-out" },
+          frame: { duration: 800 }
+        });
+      }
+    }
+
+    function downloadCSV() {
+      if (!uploadedData) return alert("No data uploaded yet!");
+      const blob = new Blob([uploadedData.csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "data.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openDashboard() {
+      alert("🚀 Dashboard mode coming soon: auto insights + graphs!");
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("chatInput");
+      const msgBox = document.getElementById("chatMessages");
+
+      const userMsg = document.createElement("div");
+      userMsg.textContent = "You: " + input.value;
+      msgBox.appendChild(userMsg);
+
+      // Simulate AI response (since /ask endpoint is not available)
+      const aiMsg = document.createElement("div");
+      aiMsg.textContent = "AI: This feature requires a server. Please set up a backend for AI responses.";
+      msgBox.appendChild(aiMsg);
+
+      input.value = "";
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>      align-items: center;
       padding: 12px;
       font-size: 16px;
       text-decoration: none;
