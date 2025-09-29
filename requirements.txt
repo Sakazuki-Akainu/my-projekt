@@ -4,3 +4,5 @@ plotly
 requests
 openpyxl
 matplotlib
+Plotly.Js
+SheetJS
