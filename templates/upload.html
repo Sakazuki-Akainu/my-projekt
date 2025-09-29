@@ -16,7 +16,6 @@
       color: white;
     }
 
-    /* Sidebar */
     .sidebar {
       position: fixed;
       top: 0;
@@ -60,7 +59,6 @@
       transform: translateX(0);
     }
 
-    /* Main content */
     .content {
       margin-left: 60px;
       padding: 20px;
@@ -86,7 +84,6 @@
       margin-top: 20px;
     }
 
-    /* AI Chat */
     .chatbox {
       position: fixed;
       bottom: 20px;
@@ -128,7 +125,6 @@
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
   <div class="sidebar">
     <a onclick="toggleDarkMode()"><i>🌙</i><span>Dark Mode</span></a>
     <a onclick="openDashboard()"><i>📊</i><span>Dashboard</span></a>
@@ -136,17 +132,13 @@
     <a><i>🤖</i><span>AI Chat</span></a>
   </div>
 
-  <!-- Main -->
   <div class="content">
     <h1>Data Dashboard</h1>
-
-    <!-- Upload Section -->
     <h2>Upload File</h2>
-    <input type="file" id="fileInput" />
+    <input type="file" id="fileInput" accept=".csv" />
     <button onclick="uploadFile()">Upload</button>
     <div id="preview"></div>
 
-    <!-- Graph Section -->
     <h2>Create Graph</h2>
     <label>X-axis:</label><select id="xColumn"></select>
     <label>Y-axis:</label><select id="yColumn"></select>
@@ -160,7 +152,6 @@
     <div id="chart"></div>
   </div>
 
-  <!-- AI Chat -->
   <div class="chatbox">
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input">
@@ -177,52 +168,87 @@
       document.body.classList.toggle("dark");
     }
 
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      const rows = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim());
+        return headers.reduce((obj, header, i) => {
+          obj[header] = values[i];
+          return obj;
+        }, {});
+      });
+      return { columns: headers, rows, csv: text };
+    }
+
     async function uploadFile() {
       const fileInput = document.getElementById("fileInput");
-      if (!fileInput.files.length) return alert("Please select a file first!");
-
-      const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
-
-      const res = await fetch("/upload", { method: "POST", body: formData });
-      const data = await res.json();
-
-      if (data.error) {
-        alert("Upload failed: " + data.error);
+      if (!fileInput.files.length) {
+        alert("Please select a file first!");
         return;
       }
 
-      uploadedData = data;
+      const file = fileInput.files[0];
+      if (!file.name.endsWith('.csv')) {
+        alert("Please upload a CSV file!");
+        return;
+      }
 
-      const preview = document.getElementById("preview");
-      preview.innerHTML = "<pre>" + JSON.stringify(data.rows, null, 2) + "</pre>";
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const text = e.target.result;
+          uploadedData = parseCSV(text);
 
-      const xSelect = document.getElementById("xColumn");
-      const ySelect = document.getElementById("yColumn");
-      xSelect.innerHTML = "";
-      ySelect.innerHTML = "";
-      data.columns.forEach(col => {
-        xSelect.innerHTML += `<option value="${col}">${col}</option>`;
-        ySelect.innerHTML += `<option value="${col}">${col}</option>`;
-      });
+          const preview = document.getElementById("preview");
+          preview.innerHTML = "<pre>" + JSON.stringify(uploadedData.rows, null, 2) + "</pre>";
+
+          const xSelect = document.getElementById("xColumn");
+          const ySelect = document.getElementById("yColumn");
+          xSelect.innerHTML = "";
+          ySelect.innerHTML = "";
+          uploadedData.columns.forEach(col => {
+            xSelect.innerHTML += `<option value="${col}">${col}</option>`;
+            ySelect.innerHTML += `<option value="${col}">${col}</option>`;
+          });
+        } catch (error) {
+          alert("Error parsing file: " + error.message);
+        }
+      };
+      reader.onerror = function () {
+        alert("Error reading file!");
+      };
+      reader.readAsText(file);
     }
 
     async function createGraph() {
+      if (!uploadedData) {
+        alert("No data uploaded yet!");
+        return;
+      }
+
       const x = document.getElementById("xColumn").value;
       const y = document.getElementById("yColumn").value;
       const type = document.getElementById("chartType").value;
 
-      const res = await fetch("/graph", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ x, y, type })
-      });
-      const fig = await res.json();
+      const xData = uploadedData.rows.map(row => row[x]);
+      const yData = uploadedData.rows.map(row => parseFloat(row[y])).filter(val => !isNaN(val));
 
-      if (fig.error) {
-        alert("Graph error: " + fig.error);
-        return;
-      }
+      const fig = {
+        data: [{
+          x: xData,
+          y: yData,
+          type: type === 'pie' ? 'pie' : type,
+          mode: type === 'scatter' ? 'markers' : type === 'line' ? 'lines' : undefined,
+          labels: type === 'pie' ? xData : undefined,
+          values: type === 'pie' ? yData : undefined,
+        }],
+        layout: {
+          title: `${y} vs ${x}`,
+          xaxis: { title: x },
+          yaxis: { title: y }
+        }
+      };
 
       if (!chartPlotted) {
         Plotly.newPlot("chart", fig.data, fig.layout, { responsive: true });
@@ -246,6 +272,7 @@
       a.href = url;
       a.download = "data.csv";
       a.click();
+      URL.revokeObjectURL(url);
     }
 
     function openDashboard() {
@@ -260,15 +287,9 @@
       userMsg.textContent = "You: " + input.value;
       msgBox.appendChild(userMsg);
 
-      const res = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: input.value })
-      });
-      const data = await res.json();
-
+      // Simulate AI response (since /ask endpoint is not available)
       const aiMsg = document.createElement("div");
-      aiMsg.textContent = "AI: " + (data.answer || data.error);
+      aiMsg.textContent = "AI: This feature requires a server. Please set up a backend for AI responses.";
       msgBox.appendChild(aiMsg);
 
       input.value = "";
