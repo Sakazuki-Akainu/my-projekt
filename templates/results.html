@@ -1,40 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Results</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>Generated Graphs</title>
+    <script src="https://cdn.plotly.com/plotly-latest.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 30px; }
-        .graph-container { display: flex; flex-wrap: wrap; gap: 20px; }
-        .graph { flex: 1 1 45%; min-width: 400px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; position: relative; }
-        .download-btn {
-            position: absolute;
-            top: 10px; right: 10px;
-            background: #28a745;
-            color: white; border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        body { font-family: Arial, sans-serif; }
+        .graph-item { margin: 20px 0; }
     </style>
 </head>
 <body>
-    <h1>Generated Graphs</h1>
-    <div class="graph-container">
-        {% for graph in graphs %}
-        <div class="graph">
-            <button class="download-btn" onclick="downloadGraph('{{loop.index0}}')">⬇ Download</button>
-            <div id="graph{{loop.index0}}">{{ graph|safe }}</div>
+    <h2>Generated Graphs</h2>
+    {% for graph in graphs %}
+        <div class="graph-item">
+            <a href="/download_graph?graph={{ loop.index0 }}">⬇ Download</a>
+            {{ graph|safe }}
         </div>
-        {% endfor %}
-    </div>
+    {% endfor %}
     <a href="/">⬅ Upload Another File</a>
-
-    <script>
-        function downloadGraph(id) {
-            var graphDiv = document.getElementById("graph" + id).getElementsByClassName("plotly-graph-div")[0];
-            Plotly.downloadImage(graphDiv, {format: "png", filename: "graph_" + id});
-        }
-    </script>
 </body>
 </html>
