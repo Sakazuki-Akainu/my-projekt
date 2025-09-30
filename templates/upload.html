@@ -2,19 +2,13 @@
 <html>
 <head>
     <title>Data Dashboard</title>
-    <script src="https://cdn.plotly.com/plotly-latest.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/jquery.dataTables.min.css">
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            transition: background 0.3s, color 0.3s;
-        }
-        body.dark {
             background: #1f2937;
             color: white;
+            display: flex;
         }
         .sidebar {
             width: 60px;
@@ -24,75 +18,51 @@
             height: 100%;
             background: #1f2937;
             padding-top: 20px;
-            transition: width 0.3s;
         }
         .sidebar a {
             display: flex;
             align-items: center;
             padding: 12px;
-            font-size: 16px;
             text-decoration: none;
             color: white;
-            cursor: pointer;
         }
         .sidebar a:hover {
             background: #374151;
         }
-        .sidebar i {
-            margin-right: 10px;
-            min-width: 20px;
-            text-align: center;
-        }
-        .sidebar span {
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-            transform: translateX(-10px);
-        }
-        .sidebar:hover span {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
         .content {
             margin-left: 60px;
             padding: 20px;
-            transition: margin-left 0.3s;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #3b82f6; /* Blue area for upload/features */
         }
-        .sidebar:hover ~ .content {
-            margin-left: 200px;
+        .upload-area {
+            flex: 1;
+            padding: 20px;
+            border-radius: 8px;
+            background: #2563eb;
         }
-
-        #preview {
+        .features {
             margin-top: 20px;
-            border: 1px solid #ccc;
+        }
+        .features a {
+            display: block;
             padding: 10px;
-            max-height: 200px;
-            overflow: auto;
-            background: white;
+            background: #2563eb;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
         }
-        body.dark #preview {
-            background: #1f2937;
-            color: white;
-        }
-        #chart {
-            margin-top: 20px;
-        }
-
         .chatbox {
             position: fixed;
             bottom: 20px;
             right: 20px;
             width: 300px;
-            background: white;
-            border: 1px solid #ccc;
+            background: #374151;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-        }
-        body.dark .chatbox {
-            background: #1f2937;
-            color: white;
         }
         .chat-messages {
             flex: 1;
@@ -108,68 +78,38 @@
             flex: 1;
             border: none;
             padding: 8px;
+            background: #1f2937;
+            color: white;
         }
         .chat-input button {
             border: none;
             background: #2563eb;
             color: white;
             padding: 8px 12px;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <a href="#" id="darkToggle"><i>🌙</i><span>Dark Mode</span></a>
         <a href="/"><i>📊</i><span>Dashboard</span></a>
         <a href="/download_graph"><i>⬇️</i><span>Download Data</span></a>
+        <a href="#" id="darkToggle"><i>🌙</i><span>Dark Mode</span></a>
         <a href="#"><i>🤖</i><span>AI Chat</span></a>
     </div>
     <div class="content">
         <h2>Data Dashboard</h2>
-
-        <h3>Upload File</h3>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="file" name="file">
-            <input type="submit" value="Upload">
-        </form>
-
-        <h3>Create Graph</h3>
-        <form method="POST" id="graphForm">
-            <div>
-                <label>X-axis:</label>
-                <input type="text" name="x_axis" value="{{ request.form.get('x_axis') }}">
-            </div>
-            <div>
-                <label>Y-axis:</label>
-                <input type="text" name="y_axis" value="{{ request.form.get('y_axis') }}">
-            </div>
-            <div>
-                <label>Graph Type:</label>
-                <input type="radio" name="graph_type" value="Line" {{ 'checked' if request.form.get('graph_type') == 'Line' else '' }}> Line
-                <input type="radio" name="graph_type" value="Bar" {{ 'checked' if request.form.get('graph_type') == 'Bar' else '' }}> Bar
-                <input type="radio" name="graph_type" value="Scatter" {{ 'checked' if request.form.get('graph_type') == 'Scatter' else '' }}> Scatter
-                <input type="radio" name="graph_type" value="Pie" {{ 'checked' if request.form.get('graph_type') == 'Pie' else '' }}> Pie
-            </div>
-            <input type="submit" value="Generate" name="generate">
-        </form>
-
-        {% if table_html %}
-            <h3>Preview Table</h3>
-            <table id="dataTable">{{ table_html|safe }}</table>
-            <script>$(document).ready(function(){ $('#dataTable').DataTable(); });</script>
-        {% endif %}
-
-        {% if stats_html %}
-            <h3>Statistics</h3>
-            {{ stats_html|safe }}
-        {% endif %}
-
-        {% if graph_html %}
-            <h3>Graph</h3>
-            <div id="chart">{{ graph_html|safe }}</div>
-        {% endif %}
-
+        <div class="upload-area">
+            <h3>Upload File</h3>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="file" name="file">
+                <input type="submit" value="Upload">
+            </form>
+        </div>
+        <div class="features">
+            <a href="#">Feature 1</a>
+            <a href="#">Feature 2</a>
+            <a href="#">Feature 3</a>
+        </div>
         <div class="chatbox">
             <div class="chat-messages"></div>
             <div class="chat-input">
@@ -178,26 +118,13 @@
             </div>
         </div>
     </div>
-
     <script>
         const toggle = document.getElementById('darkToggle');
         toggle.addEventListener('click', () => {
             document.body.classList.toggle('dark');
             localStorage.setItem('darkMode', document.body.classList.contains('dark'));
         });
-        if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
-
-        document.addEventListener('DOMContentLoaded', function() {
-            var chart = document.getElementById('chart');
-            if (chart) {
-                chart.on('plotly_hover', function(data) {
-                    Plotly.restyle(chart, { 'marker.opacity': 1, 'marker.line.width': 3 }, [data.points[0].curveNumber]);
-                });
-                chart.on('plotly_unhover', function(data) {
-                    Plotly.restyle(chart, { 'marker.opacity': 0.7, 'marker.line.width': 1 }, [data.points[0].curveNumber]);
-                });
-            }
-        });
+        if (localStorage.getItem('darkMode') == 'true') document.body.classList.add('dark');
     </script>
 </body>
 </html>
