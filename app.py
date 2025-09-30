@@ -33,9 +33,7 @@ def index():
             if len(df) <= 10:  # Small data for pie
                 fig_donut = px.pie(df, names=df.columns[0], values=df.columns[1], hole=0.3, title="Donut Distribution")
                 fig_donut.update_layout(transition_duration=300)
-                graphs.append((fig_donut.to_html(full_html=False), "Donut Chart: 3 Parts Style"))<grok:render card_id="8486a2" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">0</argument>
-</grok:render>
+                graphs.append((fig_donut.to_html(full_html=False), "Donut Chart: 3 Parts Style"))
 
             # Sleep Tracker Bar (assume 'Duration' col; horizontal for timeline)
             if 'Duration' in df.columns or 'Marks' in df.columns:  # Adapt 'Marks' as duration
@@ -43,18 +41,14 @@ def index():
                 fig_sleep = px.bar(df, y=df.columns[0], x=y_col, orientation='h', color=y_col,
                                    title="Bar Chart: Sleep Tracker Style")
                 fig_sleep.update_layout(transition_duration=300, xaxis_title="Hours")
-                graphs.append((fig_sleep.to_html(full_html=False), "Bar Chart: Sleep Tracker"))<grok:render card_id="7239bf" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">16</argument>
-</grok:render>
+                graphs.append((fig_sleep.to_html(full_html=False), "Bar Chart: Sleep Tracker"))
 
             # Multiple Bar Chart (grouped, if multi-numeric cols)
             if len(df.select_dtypes(include='number').columns) > 1:
                 fig_multi = px.bar(df.melt(id_vars=df.columns[0]), x=df.columns[0], y='value', color='variable',
                                    barmode='group', title="Multiple Bar Chart")
                 fig_multi.update_layout(transition_duration=300)
-                graphs.append((fig_multi.to_html(full_html=False), "Multiple Bar Chart"))<grok:render card_id="8f28b1" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">20</argument>
-</grok:render>
+                graphs.append((fig_multi.to_html(full_html=False), "Multiple Bar Chart"))
 
             # Morph Line to Radar (advanced animation with frames)
             if len(df.columns) >= 3:  # Need categories for radar
@@ -68,11 +62,7 @@ def index():
                                       frames=[frame1, frame2])
                 fig_morph.update_layout(updatemenus=[dict(type="buttons", buttons=[dict(label="Play",
                                      method="animate", args=[None, {"frame": {"duration": 1000}}])])])
-                graphs.append((fig_morph.to_html(full_html=False), "Morph: Line to Radar Chart"))<grok:render card_id="7e3600" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">6</argument>
-</grok:render><grok:render card_id="db9e03" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">5</argument>
-</grok:render>
+                graphs.append((fig_morph.to_html(full_html=False), "Morph: Line to Radar Chart"))
 
             return render_template("results.html", graphs=graphs)
 
