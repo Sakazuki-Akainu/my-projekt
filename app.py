@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from flask import Flask, render_template, request, redirect, url_for
+import os
 import io  # For temp downloads
 
 app = Flask(__name__)
@@ -28,8 +29,9 @@ def index():
                 frames = []
                 for i in range(len(df) + 1):
                     y_values = df[y_col][:i].tolist() + [0] * (len(df) - i)
-                    # Use a colorscale based on y_values if numeric, else default color
-                    colors = [f'rgb({int(255*(v/max(y_values, default=1)))},{int(255*(1-v/max(y_values, default=1)))},128)' if pd.to_numeric(v, errors='coerce') == v else '#888888' for v in y_values]
+                    # Avoid division by zero by using a small default if max is 0
+                    max_val = max(y_values) if max(y_values) > 0 else 1e-10
+                    colors = [f'rgb({int(255*(v/max_val))},{int(255*(1-v/max_val))},128)' if pd.to_numeric(v, errors='coerce') == v else '#888888' for v in y_values]
                     frames.append(go.Frame(data=[go.Bar(x=df[x_col], y=y_values, marker=dict(color=colors))], name=f'frame{i}'))
                 fig_bar = go.Figure(data=[go.Bar(x=df[x_col], y=[0]*len(df), marker=dict(color=['#888888']*len(df)))], frames=frames)
                 fig_bar.update_layout(
@@ -76,8 +78,9 @@ def index():
                 frames = []
                 for i in range(len(df) + 1):
                     x_values = df[y_col][:i].tolist() + [0] * (len(df) - i)
-                    # Use a colorscale based on x_values if numeric, else default color
-                    colors = [f'rgb({int(255*(v/max(x_values, default=1)))},{int(255*(1-v/max(x_values, default=1)))},128)' if pd.to_numeric(v, errors='coerce') == v else '#888888' for v in x_values]
+                    # Avoid division by zero by using a small default if max is 0
+                    max_val = max(x_values) if max(x_values) > 0 else 1e-10
+                    colors = [f'rgb({int(255*(v/max_val))},{int(255*(1-v/max_val))},128)' if pd.to_numeric(v, errors='coerce') == v else '#888888' for v in x_values]
                     frames.append(go.Frame(data=[go.Bar(y=df[df.columns[0]], x=x_values, orientation='h', marker=dict(color=colors))], name=f'frame{i}'))
                 fig_sleep = go.Figure(data=[go.Bar(y=df[df.columns[0]], x=[0]*len(df), orientation='h', marker=dict(color=['#888888']*len(df)))], frames=frames)
                 fig_sleep.update_layout(
