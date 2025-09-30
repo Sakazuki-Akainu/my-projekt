@@ -19,28 +19,68 @@ def index():
             else:
                 return "Unsupported file type!"
 
-            # Generate multiple graphs
+            # Generate multiple graphs with animations
             graphs = []
 
-            # Basic Bar (like your original)
+            # Basic Bar with Lift-Up Animation
             if len(df.columns) >= 2:
                 x_col, y_col = df.columns[0], df.columns[1]
-                fig_bar = px.bar(df, x=x_col, y=y_col, color=y_col, title=f"{y_col} vs {x_col}")
-                fig_bar.update_layout(transition_duration=300)
+                # Create frames for animation (start at 0, animate to real values)
+                frames = [go.Frame(data=[go.Bar(x=df[x_col], y=[0] * len(df))], name='frame0')]
+                bar_data = go.Bar(x=df[x_col], y=df[y_col], marker_color=df[y_col], name='frame1')
+                frames.append(go.Frame(data=[bar_data], name='frame1'))
+                fig_bar = go.Figure(data=[bar_data], frames=frames,
+                                  layout=go.Layout(
+                                      title=f"{y_col} vs {x_col}",
+                                      xaxis=dict(title=x_col),
+                                      yaxis=dict(title=y_col, range=[0, df[y_col].max() * 1.1]),
+                                      updatemenus=[dict(
+                                          type="buttons",
+                                          buttons=[dict(label="Play",
+                                                        method="animate",
+                                                        args=[None, {"frame": {"duration": 1000, "redraw": True}}])]
+                                      )]))
+                fig_bar.update_layout(transition_duration=500)
                 graphs.append((fig_bar.to_html(full_html=False), "Bar Chart: Basic Overview"))
 
-            # Donut Chart (if categorical/numeric, like 3 parts in image)
+            # Donut Chart with Fill Animation
             if len(df) <= 10:  # Small data for pie
                 fig_donut = px.pie(df, names=df.columns[0], values=df.columns[1], hole=0.3, title="Donut Distribution")
-                fig_donut.update_layout(transition_duration=300)
+                # Convert to Graph Objects for animation
+                donut_data = [go.Pie(labels=df[df.columns[0]], values=[0] * len(df), hole=0.3, name='frame0')]
+                for i in range(len(df)):
+                    donut_data.append(go.Pie(labels=df[df.columns[0]], values=[df.iloc[i, 1] if j == i else 0 for j in range(len(df))], hole=0.3, name=f'frame{i+1}'))
+                frames = [go.Frame(data=[donut_data[0]], name='frame0')]
+                for i in range(1, len(donut_data)):
+                    frames.append(go.Frame(data=[donut_data[i]], name=f'frame{i}'))
+                fig_donut = go.Figure(data=donut_data[0:1], frames=frames,
+                                    layout=go.Layout(title="Donut Distribution"))
+                fig_donut.update_layout(updatemenus=[dict(
+                    type="buttons",
+                    buttons=[dict(label="Play",
+                                  method="animate",
+                                  args=[None, {"frame": {"duration": 800, "redraw": True}, "transition": {"duration": 500}}])]
+                )])
                 graphs.append((fig_donut.to_html(full_html=False), "Donut Chart: 3 Parts Style"))
 
-            # Sleep Tracker Bar (assume 'Duration' col; horizontal for timeline)
-            if 'Duration' in df.columns or 'Marks' in df.columns:  # Adapt 'Marks' as duration
+            # Sleep Tracker Bar with Lift-Up Animation
+            if 'Duration' in df.columns or 'Marks' in df.columns:
                 y_col = 'Duration' if 'Duration' in df.columns else 'Marks'
-                fig_sleep = px.bar(df, y=df.columns[0], x=y_col, orientation='h', color=y_col,
-                                   title="Bar Chart: Sleep Tracker Style")
-                fig_sleep.update_layout(transition_duration=300, xaxis_title="Hours")
+                frames = [go.Frame(data=[go.Bar(y=df[df.columns[0]], x=[0] * len(df), orientation='h')], name='frame0')]
+                bar_data = go.Bar(y=df[df.columns[0]], x=df[y_col], orientation='h', marker_color=df[y_col], name='frame1')
+                frames.append(go.Frame(data=[bar_data], name='frame1'))
+                fig_sleep = go.Figure(data=[bar_data], frames=frames,
+                                    layout=go.Layout(
+                                        title="Bar Chart: Sleep Tracker Style",
+                                        xaxis=dict(title="Hours" if 'Duration' in df.columns else y_col),
+                                        yaxis=dict(title=df.columns[0]),
+                                        updatemenus=[dict(
+                                            type="buttons",
+                                            buttons=[dict(label="Play",
+                                                          method="animate",
+                                                          args=[None, {"frame": {"duration": 1000, "redraw": True}}])]
+                                        )]))
+                fig_sleep.update_layout(transition_duration=500)
                 graphs.append((fig_sleep.to_html(full_html=False), "Bar Chart: Sleep Tracker"))
 
             # Multiple Bar Chart (grouped, if multi-numeric cols)
@@ -51,11 +91,9 @@ def index():
                 graphs.append((fig_multi.to_html(full_html=False), "Multiple Bar Chart"))
 
             # Morph Line to Radar (advanced animation with frames)
-            if len(df.columns) >= 3:  # Need categories for radar
-                # Line frame
+            if len(df.columns) >= 3:
                 frame1 = go.Frame(data=[go.Scatter(x=df.iloc[:,0], y=df.iloc[:,1], mode='lines')],
                                  layout=go.Layout(title_text="Line Chart"))
-                # Radar frame
                 frame2 = go.Frame(data=[go.Scatterpolar(r=df.iloc[:,1], theta=df.iloc[:,0], fill='toself')],
                                  layout=go.Layout(title_text="Radar Chart", polar=dict(radialaxis=dict(visible=True))))
                 fig_morph = go.Figure(data=frame1.data, layout=frame1.layout,
@@ -66,11 +104,10 @@ def index():
 
             return render_template("results.html", graphs=graphs)
 
-    return render_template("upload.html")  # Or your original form
+    return render_template("upload.html")
 
 @app.route("/download_graph")
 def download_graph():
-    # TODO: Use session to store figs, then fig.write_image(io.BytesIO()), return send_file
     return "Download coming soon!"
 
 if __name__ == "__main__":
