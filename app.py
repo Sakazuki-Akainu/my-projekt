@@ -3,6 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from flask import Flask, render_template, request, redirect, url_for
 import io
+import json
 
 app = Flask(__name__)
 
@@ -18,6 +19,10 @@ def index():
                 df = pd.read_excel(file)
             else:
                 return "Unsupported file type!"
+
+            # Clean DataFrame for JSON (replace NaN with null)
+            df = df.replace({pd.NA: None})
+            df_json = df.to_json(orient='records')
 
             # Auto-detect and generate initial graphs
             graphs = []
@@ -45,7 +50,7 @@ def index():
                 fig_donut.update_layout(updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 500}, "transition": {"duration": 300}, "fromcurrent": True, "mode": "immediate"}])])])
                 graphs.append((fig_donut.to_html(full_html=False), "Donut Chart"))
 
-            return render_template("results.html", graphs=graphs, df=df.to_html(classes="data", header=True))
+            return render_template("results.html", graphs=graphs, df_json=df_json)
 
     return render_template("upload.html")
 
