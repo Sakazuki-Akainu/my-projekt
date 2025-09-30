@@ -28,13 +28,15 @@ def index():
                 frames = []
                 for i in range(len(df) + 1):
                     y_values = df[y_col][:i].tolist() + [0] * (len(df) - i)
-                    frames.append(go.Frame(data=[go.Bar(x=df[x_col], y=y_values, marker_color=y_values)], name=f'frame{i}'))
-                fig_bar = go.Figure(data=[go.Bar(x=df[x_col], y=[0]*len(df))], frames=frames)
+                    # Use a colorscale based on y_values if numeric, else default color
+                    colors = [f'rgb({int(255*(v/max(y_values, default=1)))},{int(255*(1-v/max(y_values, default=1)))},128)' if pd.to_numeric(v, errors='coerce') == v else '#888888' for v in y_values]
+                    frames.append(go.Frame(data=[go.Bar(x=df[x_col], y=y_values, marker=dict(color=colors))], name=f'frame{i}'))
+                fig_bar = go.Figure(data=[go.Bar(x=df[x_col], y=[0]*len(df), marker=dict(color=['#888888']*len(df)))], frames=frames)
                 fig_bar.update_layout(
                     title=f"{y_col} vs {x_col}",
                     xaxis_title=x_col,
                     yaxis_title=y_col,
-                    yaxis_range=[0, df[y_col].max() * 1.1],
+                    yaxis_range=[0, df[y_col].max() * 1.1 if pd.api.types.is_numeric_dtype(df[y_col]) else 100],
                     updatemenus=[dict(
                         type="buttons",
                         buttons=[dict(
@@ -52,7 +54,7 @@ def index():
                 cumulative_values = [0] * len(df)
                 for i in range(len(df) + 1):
                     if i > 0:
-                        cumulative_values[i-1] = df.iloc[i-1, 1]
+                        cumulative_values[i-1] = df.iloc[i-1, 1] if pd.api.types.is_numeric_dtype(df.iloc[:, 1]) else 1
                     frames.append(go.Frame(data=[go.Pie(labels=df[df.columns[0]], values=cumulative_values, hole=0.3)], name=f'frame{i}'))
                 fig_donut = go.Figure(data=[go.Pie(labels=df[df.columns[0]], values=[0]*len(df), hole=0.3)], frames=frames)
                 fig_donut.update_layout(
@@ -74,13 +76,15 @@ def index():
                 frames = []
                 for i in range(len(df) + 1):
                     x_values = df[y_col][:i].tolist() + [0] * (len(df) - i)
-                    frames.append(go.Frame(data=[go.Bar(y=df[df.columns[0]], x=x_values, orientation='h', marker_color=x_values)], name=f'frame{i}'))
-                fig_sleep = go.Figure(data=[go.Bar(y=df[df.columns[0]], x=[0]*len(df), orientation='h')], frames=frames)
+                    # Use a colorscale based on x_values if numeric, else default color
+                    colors = [f'rgb({int(255*(v/max(x_values, default=1)))},{int(255*(1-v/max(x_values, default=1)))},128)' if pd.to_numeric(v, errors='coerce') == v else '#888888' for v in x_values]
+                    frames.append(go.Frame(data=[go.Bar(y=df[df.columns[0]], x=x_values, orientation='h', marker=dict(color=colors))], name=f'frame{i}'))
+                fig_sleep = go.Figure(data=[go.Bar(y=df[df.columns[0]], x=[0]*len(df), orientation='h', marker=dict(color=['#888888']*len(df)))], frames=frames)
                 fig_sleep.update_layout(
                     title="Bar Chart: Sleep Tracker Style",
                     xaxis_title="Hours" if 'Duration' in df.columns else y_col,
                     yaxis_title=df.columns[0],
-                    xaxis_range=[0, df[y_col].max() * 1.1],
+                    xaxis_range=[0, df[y_col].max() * 1.1 if pd.api.types.is_numeric_dtype(df[y_col]) else 100],
                     updatemenus=[dict(
                         type="buttons",
                         buttons=[dict(
@@ -99,7 +103,7 @@ def index():
                 frames = []
                 for i in range(len(melted) + 1):
                     partial_df = melted.iloc[:i]
-                    data = [go.Bar(x=partial_df[partial_df['variable'] == var][df.columns[0]], y=partial_df[partial_df['variable'] == var]['value'], name=var) for var in unique_vars]
+                    data = [go.Bar(x=partial_df[partial_df['variable'] == var][df.columns[0]], y=partial_df[partial_df['variable'] == var]['value'], name=var, marker=dict(color='blue')) for var in unique_vars]
                     frames.append(go.Frame(data=data, name=f'frame{i}'))
                 fig_multi = go.Figure(data=[], frames=frames)
                 fig_multi.update_layout(
