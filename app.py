@@ -19,10 +19,10 @@ def index():
             else:
                 return "Unsupported file type!"
 
-            # Generate multiple graphs with animations for all
+            # Generate multiple graphs with animations and auto-play
             graphs = []
 
-            # Basic Bar with Lift-Up Animation (bars grow from 0)
+            # Basic Bar with Lift-Up Animation and Auto-Play
             if len(df.columns) >= 2:
                 x_col, y_col = df.columns[0], df.columns[1]
                 frames = []
@@ -35,11 +35,18 @@ def index():
                     xaxis_title=x_col,
                     yaxis_title=y_col,
                     yaxis_range=[0, df[y_col].max() * 1.1],
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_bar.to_html(full_html=False), "Bar Chart: Basic Overview"))
 
-            # Donut Chart with Sequential Fill Animation (segments fill one by one)
+            # Donut Chart with Sequential Fill Animation and Auto-Play
             if len(df) <= 10:
                 frames = []
                 cumulative_values = [0] * len(df)
@@ -50,11 +57,18 @@ def index():
                 fig_donut = go.Figure(data=[go.Pie(labels=df[df.columns[0]], values=[0]*len(df), hole=0.3)], frames=frames)
                 fig_donut.update_layout(
                     title="Donut Distribution",
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 500, "redraw": True}, "transition": {"duration": 300}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 500, "redraw": True}, "transition": {"duration": 300}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_donut.to_html(full_html=False), "Donut Chart: 3 Parts Style"))
 
-            # Sleep Tracker Bar with Lift-Up Animation (horizontal bars grow)
+            # Sleep Tracker Bar with Lift-Up Animation and Auto-Play
             if 'Duration' in df.columns or 'Marks' in df.columns:
                 y_col = 'Duration' if 'Duration' in df.columns else 'Marks'
                 frames = []
@@ -67,11 +81,18 @@ def index():
                     xaxis_title="Hours" if 'Duration' in df.columns else y_col,
                     yaxis_title=df.columns[0],
                     xaxis_range=[0, df[y_col].max() * 1.1],
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_sleep.to_html(full_html=False), "Bar Chart: Sleep Tracker"))
 
-            # Multiple Bar Chart with Lift-Up Animation (groups lift sequentially)
+            # Multiple Bar Chart with Lift-Up Animation and Auto-Play
             if len(df.select_dtypes(include='number').columns) > 1:
                 melted = df.melt(id_vars=df.columns[0], var_name='variable', value_name='value')
                 unique_vars = melted['variable'].unique()
@@ -84,12 +105,20 @@ def index():
                 fig_multi.update_layout(
                     title="Multiple Bar Chart",
                     barmode='group',
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 200, "redraw": True}, "transition": {"duration": 100}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 200, "redraw": True}, "transition": {"duration": 100}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_multi.to_html(full_html=False), "Multiple Bar Chart"))
 
-            # Line Chart with Point-by-Point Animation
+            # Line Chart with Point-by-Point Animation and Auto-Play
             if len(df.columns) >= 2:
+                x_col, y_col = df.columns[0], df.columns[1]
                 frames = []
                 for i in range(len(df) + 1):
                     frames.append(go.Frame(data=[go.Scatter(x=df[x_col][:i], y=df[y_col][:i], mode='lines+markers')], name=f'frame{i}'))
@@ -98,12 +127,20 @@ def index():
                     title=f"Line: {y_col} vs {x_col}",
                     xaxis_title=x_col,
                     yaxis_title=y_col,
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_line.to_html(full_html=False), "Line Chart: Point by Point"))
 
-            # Scatter Chart with Pop-In Animation (dots appear one by one)
+            # Scatter Chart with Pop-In Animation and Auto-Play
             if len(df.columns) >= 2:
+                x_col, y_col = df.columns[0], df.columns[1]
                 frames = []
                 for i in range(len(df) + 1):
                     frames.append(go.Frame(data=[go.Scatter(x=df[x_col][:i], y=df[y_col][:i], mode='markers')], name=f'frame{i}'))
@@ -112,11 +149,18 @@ def index():
                     title=f"Scatter: {y_col} vs {x_col}",
                     xaxis_title=x_col,
                     yaxis_title=y_col,
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 300, "redraw": True}, "transition": {"duration": 200}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_scatter.to_html(full_html=False), "Scatter Chart: Pop Dots"))
 
-            # Morph Line to Radar with Enhanced Transition
+            # Morph Line to Radar with Enhanced Transition and Auto-Play
             if len(df.columns) >= 3:
                 frame1 = go.Frame(data=[go.Scatter(x=df.iloc[:,0], y=df.iloc[:,1], mode='lines')],
                                  layout=go.Layout(title_text="Line Chart"))
@@ -125,7 +169,14 @@ def index():
                 fig_morph = go.Figure(data=frame1.data, layout=frame1.layout, frames=[frame1, frame2])
                 fig_morph.update_layout(
                     transition_duration=500,
-                    updatemenus=[dict(type="buttons", buttons=[dict(label="Play", method="animate", args=[None, {"frame": {"duration": 1000, "redraw": True}, "transition": {"duration": 500}}])])]
+                    updatemenus=[dict(
+                        type="buttons",
+                        buttons=[dict(
+                            label="Play",
+                            method="animate",
+                            args=[None, {"frame": {"duration": 1000, "redraw": True}, "transition": {"duration": 500}, "fromcurrent": True, "mode": "immediate"}]
+                        )]
+                    )]
                 )
                 graphs.append((fig_morph.to_html(full_html=False), "Morph: Line to Radar Chart"))
 
