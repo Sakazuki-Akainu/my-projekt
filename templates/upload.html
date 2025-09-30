@@ -6,9 +6,10 @@
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #1f2937;
-            color: white;
+            background: #f4f4f4;
+            color: #333;
             display: flex;
+            height: 100vh;
         }
         .sidebar {
             width: 60px;
@@ -16,7 +17,7 @@
             top: 0;
             left: 0;
             height: 100%;
-            background: #1f2937;
+            background: #2d2d2d;
             padding-top: 20px;
         }
         .sidebar a {
@@ -24,10 +25,10 @@
             align-items: center;
             padding: 12px;
             text-decoration: none;
-            color: white;
+            color: #fff;
         }
         .sidebar a:hover {
-            background: #374151;
+            background: #404040;
         }
         .content {
             margin-left: 60px;
@@ -35,13 +36,13 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: #3b82f6; /* Blue area for upload/features */
         }
         .upload-area {
             flex: 1;
             padding: 20px;
-            border-radius: 8px;
-            background: #2563eb;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
         }
         .features {
             margin-top: 20px;
@@ -49,17 +50,24 @@
         .features a {
             display: block;
             padding: 10px;
-            background: #2563eb;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
             border-radius: 5px;
             margin-bottom: 10px;
             text-align: center;
+            text-decoration: none;
+            color: #333;
+        }
+        .features a:hover {
+            background: #e0e0e0;
         }
         .chatbox {
             position: fixed;
             bottom: 20px;
             right: 20px;
             width: 300px;
-            background: #374151;
+            background: #fff;
+            border: 1px solid #ddd;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
@@ -69,23 +77,28 @@
             padding: 10px;
             overflow-y: auto;
             max-height: 200px;
+            background: #f9f9f9;
         }
         .chat-input {
             display: flex;
-            border-top: 1px solid #ccc;
+            border-top: 1px solid #ddd;
         }
         .chat-input input {
             flex: 1;
             border: none;
             padding: 8px;
-            background: #1f2937;
-            color: white;
+            background: #fff;
+            color: #333;
         }
         .chat-input button {
             border: none;
-            background: #2563eb;
-            color: white;
+            background: #007bff;
+            color: #fff;
             padding: 8px 12px;
+            cursor: pointer;
+        }
+        .chat-input button:hover {
+            background: #0056b3;
         }
     </style>
 </head>
@@ -122,9 +135,20 @@
         const toggle = document.getElementById('darkToggle');
         toggle.addEventListener('click', () => {
             document.body.classList.toggle('dark');
-            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+            const isDark = document.body.classList.contains('dark');
+            document.body.style.background = isDark ? '#2d2d2d' : '#f4f4f4';
+            document.body.style.color = isDark ? '#fff' : '#333';
+            document.querySelectorAll('.upload-area, .features a, .chatbox, .chat-messages, .chat-input input').forEach(el => {
+                el.style.background = isDark ? '#404040' : '#fff';
+                el.style.borderColor = isDark ? '#555' : '#ddd';
+                if (el.tagName === 'INPUT') el.style.color = isDark ? '#fff' : '#333';
+            });
+            document.querySelectorAll('.chat-input button').forEach(btn => {
+                btn.style.background = isDark ? '#0056b3' : '#007bff';
+            });
+            localStorage.setItem('darkMode', isDark);
         });
-        if (localStorage.getItem('darkMode') == 'true') document.body.classList.add('dark');
+        if (localStorage.getItem('darkMode') === 'true') toggle.click();
     </script>
 </body>
 </html>
