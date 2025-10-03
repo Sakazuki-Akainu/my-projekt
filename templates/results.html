@@ -3,60 +3,25 @@
 <head>
     <title>Data Dashboard - Results</title>
     <script src="https://cdn.plotly.com/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
         body {
             margin: 0;
             font-family: Arial, sans-serif;
             background: #f4f4f4;
             color: #333;
-            display: flex;
-            height: 100vh;
         }
-        .sidebar {
-            width: 60px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: #2d2d2d;
-            padding-top: 20px;
-        }
-        .sidebar a {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            text-decoration: none;
-            color: #fff;
-        }
-        .sidebar a:hover {
-            background: #404040;
-        }
-        .graph-area {
-            width: 300px;
-            background: #fff;
-            padding: 10px;
-            overflow-y: auto;
-            border-right: 1px solid #ddd;
-        }
-        .graph-item {
-            background: #f9f9f9;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        select {
-            margin-top: 5px;
-            padding: 2px;
-            width: 100%;
-        }
-        .content {
-            margin-left: 360px;
+        .container {
+            max-width: 1200px;
+            margin: auto;
             padding: 20px;
-            flex: 1;
+        }
+        .card {
             background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
         table.data {
             width: 100%;
@@ -68,172 +33,41 @@
             padding: 8px;
             text-align: left;
         }
-        .chatbox {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 300px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-        }
-        .chat-messages {
-            flex: 1;
-            padding: 10px;
-            overflow-y: auto;
-            max-height: 200px;
-            background: #f9f9f9;
-        }
-        .chat-input {
-            display: flex;
-            border-top: 1px solid #ddd;
-        }
-        .chat-input input {
-            flex: 1;
-            border: none;
-            padding: 8px;
-            background: #fff;
-            color: #333;
-        }
-        .chat-input button {
-            border: none;
-            background: #007bff;
-            color: #fff;
-            padding: 8px 12px;
-            cursor: pointer;
-        }
-        .chat-input button:hover {
-            background: #0056b3;
-        }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <a href="/"><i>📊</i><span>Dashboard</span></a>
-        <a href="/download_graph"><i>⬇️</i><span>Download Data</span></a>
-        <a href="#" id="darkToggle"><i>🌙</i><span>Dark Mode</span></a>
-        <a href="#"><i>🤖</i><span>AI Chat</span></a>
-    </div>
-    <div class="graph-area">
-        <h3>Graphs</h3>
-        {% for graph_html, title in graphs %}
-            <div class="graph-item">
-                <h4>{{ title }}</h4>
-                <div id="graph-{{ loop.index0 }}">{{ graph_html|safe }}</div>
-                <select onchange="updateGraph(this, {{ loop.index0 }})">
-                    <option value="bar" {% if 'Bar' in title %}selected{% endif %}>Bar Chart</option>
-                    <option value="donut" {% if 'Donut' in title %}selected{% endif %}>Donut Chart</option>
-                    <option value="line" {% if 'Line' in title %}selected{% endif %}>Line Chart</option>
-                    <option value="scatter" {% if 'Scatter' in title %}selected{% endif %}>Scatter Plot</option>
-                    <option value="histogram" {% if 'Histogram' in title %}selected{% endif %}>Histogram</option>
-                    <option value="heatmap" {% if 'Heatmap' in title %}selected{% endif %}>Heatmap</option>
-                </select>
-            </div>
-        {% endfor %}
-    </div>
-    <div class="content">
-        <h2>Data Dashboard</h2>
+    <div class="container">
+
+        <h2 class="mb-4">📊 Data Dashboard</h2>
+
         {% if df_json %}
-            <h3>Data Preview</h3>
+        <div class="card">
+            <h4>Data Preview</h4>
             <script>
                 const df = JSON.parse('{{ df_json|safe }}');
-                document.write('<table class="data"><tr>' + Object.keys(df[0]).map(key => `<th>${key}</th>`).join('') + '</tr>' + df.map(row => '<tr>' + Object.values(row).map(val => `<td>${val || 'null'}</td>`).join('') + '</tr>').join('') + '</table>');
+                document.write('<table class="data"><tr>' 
+                    + Object.keys(df[0]).map(key => `<th>${key}</th>`).join('') 
+                    + '</tr>' 
+                    + df.map(row => '<tr>' 
+                        + Object.values(row).map(val => `<td>${val ?? 'null'}</td>`).join('') 
+                        + '</tr>').join('') 
+                    + '</table>');
             </script>
+        </div>
         {% endif %}
-        <div class="features">
-            <a href="#">Feature 1</a>
-            <a href="#">Feature 2</a>
-            <a href="#">Feature 3</a>
+
+        {% if graphs %}
+        <div class="card">
+            <h4>Generated Graphs</h4>
+            {% for graph_html, title in graphs %}
+                <div class="mb-4">
+                    <h5>{{ title }}</h5>
+                    {{ graph_html|safe }}
+                </div>
+            {% endfor %}
         </div>
-        <div class="chatbox">
-            <div class="chat-messages"></div>
-            <div class="chat-input">
-                <input type="text" placeholder="Ask about data...">
-                <button>Send</button>
-            </div>
-        </div>
+        {% endif %}
+
     </div>
-    <script>
-        function updateGraph(select, index) {
-            const graphDiv = document.getElementById(`graph-${index}`);
-            const df = JSON.parse('{{ df_json|safe }}');
-            const xCol = Object.keys(df[0])[0];
-            const yCol = Object.keys(df[0])[1] || Object.keys(df[0])[0];
-            let fig;
-
-            switch(select.value) {
-                case 'bar':
-                    fig = Plotly.newPlot(graphDiv, [{
-                        x: df.map(row => row[xCol]),
-                        y: df.map(row => row[yCol] || 1),
-                        type: 'bar',
-                        marker: { color: '#1f77b4' }
-                    }], { title: `${yCol} vs ${xCol}` });
-                    break;
-                case 'donut':
-                    fig = Plotly.newPlot(graphDiv, [{
-                        labels: df.map(row => row[xCol]),
-                        values: df.map(row => row[yCol] || 1),
-                        type: 'pie',
-                        hole: 0.3
-                    }], { title: 'Donut Distribution' });
-                    break;
-                case 'line':
-                    fig = Plotly.newPlot(graphDiv, [{
-                        x: df.map(row => row[xCol]),
-                        y: df.map(row => row[yCol] || 1),
-                        type: 'scatter',
-                        mode: 'lines'
-                    }], { title: `${yCol} vs ${xCol}` });
-                    break;
-                case 'scatter':
-                    fig = Plotly.newPlot(graphDiv, [{
-                        x: df.map(row => row[xCol]),
-                        y: df.map(row => row[yCol] || 1),
-                        mode: 'markers'
-                    }], { title: `${yCol} vs ${xCol}` });
-                    break;
-                case 'histogram':
-                    fig = Plotly.newPlot(graphDiv, [{
-                        x: df.map(row => row[yCol] || 1),
-                        type: 'histogram'
-                    }], { title: `Histogram of ${yCol}` });
-                    break;
-                case 'heatmap':
-                    const corr = df.reduce((acc, row) => {
-                        Object.keys(row).forEach(key => acc[key] = (acc[key] || []).concat(row[key]));
-                        return acc;
-                    }, {});
-                    const z = Object.keys(corr).map(k1 => Object.keys(corr).map(k2 => {
-                        return corr[k1].reduce((sum, v, i) => sum + v * corr[k2][i], 0) / corr[k1].length;
-                    }));
-                    fig = Plotly.newPlot(graphDiv, [{
-                        z: z,
-                        x: Object.keys(corr),
-                        y: Object.keys(corr),
-                        type: 'heatmap'
-                    }], { title: 'Correlation Heatmap' });
-                    break;
-            }
-            if (fig) {
-                fig.then(() => {
-                    Plotly.relayout(graphDiv, { 'updatemenus[0].buttons[0].args[1].fromcurrent': true, 'updatemenus[0].buttons[0].args[1].mode': 'immediate' });
-                });
-            }
-        }
-
-        document.querySelectorAll('.graph-item').forEach(item => {
-            item.addEventListener('mouseenter', () => {
-                const graph = item.querySelector('[id^="graph-"]');
-                if (graph) Plotly.restyle(graph, { 'marker.opacity': 1, 'marker.line.width': 3 });
-            });
-            item.addEventListener('mouseleave', () => {
-                const graph = item.querySelector('[id^="graph-"]');
-                if (graph) Plotly.restyle(graph, { 'marker.opacity': 0.7, 'marker.line.width': 1 });
-            });
-        });
-    </script>
 </body>
 </html>
